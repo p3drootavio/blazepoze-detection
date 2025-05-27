@@ -1,0 +1,21 @@
+# macOS and PyCharm
+.DS_Store
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# Virtual environment
+.venv/
+
+# Data and outputs
+data/
+output/
+*.csv
+*.pb
+*.json
+*.png
