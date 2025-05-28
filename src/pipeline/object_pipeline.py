@@ -9,11 +9,11 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from collections import defaultdict
-
 from pandas.errors import EmptyDataError
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from src.utils import data_augmentation
 from src.utils import track_calls
 from src.utils import validators
@@ -49,8 +49,14 @@ class PoseDatasetPipeline():
         split_data():
             Splits the loaded data into training, validation, and test sets. Retains stratification of class distributions.
 
-        plot_sample(sample_size=50000, augment=False, save_fig=False, grid_on=False):
+        plot_landmarks_distribution(sample_size=100, augment=False, save_fig=False, grid_on=False):
             Visualizes a subsample of the pose data using PCA. Includes scatter and bar plots for the transformed data, with an option for augmentation and saving the figure.
+
+        plot_landmarks_across_time(sample_indices, sequence_indices, save_fig, save_path, grid_on):
+            Visualizes how landmark positions change over time by creating temporal trajectory plots for selected samples and sequences.
+
+        plot_landmarks_clustered(n_clusters, sample_size, augment, save_fig, save_path, grid_on):
+            Groups and visualizes pose patterns using clustering analysis, creating scatter plots of clustered landmark data with centroid markers.
 
         get_tf_dataset(split="train", augment=False):
             Returns a TensorFlow dataset corresponding to a specified split (train, val, or test). Provides an option to apply augmentation during dataset creation.
@@ -130,6 +136,7 @@ class PoseDatasetPipeline():
                 Pipeline Data Information:
                 Size of the loaded data: {self.X.shape}
                 Number of gesture classes: {len(np.unique(self.y_encoder))}
+                Gesture Classes: {np.unique(self.y)}
                 Augmentation Counts: {self.augmentation_counts}
             """)
         else:
@@ -162,14 +169,14 @@ class PoseDatasetPipeline():
             AssertionError: If loaded data doesn't match expected shape (50, 99)
         """
         X_data, y_labels = [], []
-        file_config = ("d__landmarks.csv", "p__landmarks.csv", "ft__landmarks.csv", "ht__landmarks.csv")
+        file_config = ("d__landmarks.csv", "p__landmarks.csv", "ft__landmarks.csv", "ht__landmarks.csv", "alt__landmarks.csv")
+        self.data_frames_list = []
 
         try:
             for folder in os.listdir(self.data_dir):  # Navigate each subfolder
                 folder_path = os.path.join(self.data_dir, folder)
 
                 if not os.path.isdir(folder_path): continue  # Skip if it's not a folder
-
 
                 for file in os.listdir(folder_path):  # Navigate each folder per subfolder
                     file_path = os.path.join(folder_path, file)
@@ -178,20 +185,25 @@ class PoseDatasetPipeline():
 
                         if pose_df.shape != (self.sequence_length, self.landmarks_dim + 1): continue  # +1 for 'Unnamed: 0'
 
-                        frame_data = pose_df.drop(columns=pose_df.columns[0]).values.astype(np.float32)  # Shape: (50, 99)
+                        self.frame_data = pose_df.drop(columns=pose_df.columns[0]).values.astype(np.float32)  # Shape: (50, 99)
+                        self.data_frames_list.append(self.frame_data)
 
-                        X_data.append(frame_data)
+                        X_data.append(self.frame_data)
 
-                        label = file.split("__")[0]
-                        y_labels.append(label)
+                        if file.endswith("alt__landmarks.csv"):
+                            label = file.split("_alt__")[0]
+                            y_labels.append(label)
+                        else:
+                            label = file.split("__")[0]
+                            y_labels.append(label)
 
             # Transform data frames to np arrays
             self.X = np.array(X_data, dtype=np.float32)  # Shape: (samples, 50, 99)
-            y = np.array(y_labels)
+            self.y = np.array(y_labels)
 
             # Encoder labels
             self.encoder = LabelEncoder()
-            self.y_encoder = self.encoder.fit_transform(y)
+            self.y_encoder = self.encoder.fit_transform(self.y)
 
             assert self.X.shape[1:] == (50, 99), "X does not satisfy the (50, 99) shape"
 
@@ -236,7 +248,7 @@ class PoseDatasetPipeline():
                                                                                   test_size=valid_size)
 
 
-    def plot_sample(self, sample_size=100, augment=False, save_fig=False, save_path=None, grid_on=False):
+    def plot_landmarks_distribution(self, sample_size=100, augment=False, save_fig=False, save_path=None, grid_on=False):
         """
         Visualize pose data using PCA dimensionality reduction.
 
@@ -252,7 +264,7 @@ class PoseDatasetPipeline():
         Both plots are color-coded by class labels.
         """
         if self.fail:
-            print(f"Plotting sample process was stopped due to {self.errors}. Please check the logs for more information.")
+            print(f"Plotting landmarks distribution process was stopped due to {self.errors}. Please check the logs for more information.")
             return
 
         x_vis = self.X_train[:sample_size]
@@ -265,17 +277,17 @@ class PoseDatasetPipeline():
         if augment:
             dataset = dataset.map(self._augment_tn_factory(), num_parallel_calls=tf.data.AUTOTUNE)
 
-        # Collect the augmented dataset into numpy arrays
-        X_augmented, y_augmented = [], []
+        # Collect the dataset into numpy arrays
+        X_values, y_values = [], []
         for x, y in dataset.as_numpy_iterator():
-            X_augmented.append(x)
-            y_augmented.append(y)
+            X_values.append(x)
+            y_values.append(y)
 
-        X_augmented = np.array(X_augmented)
-        y_augmented = np.array(y_augmented)
+        X_np_values = np.array(X_values)
+        y_np_values = np.array(y_values)
 
         # Flatten each sequence: shape becomes (n_samples, sequence_length * n_features)
-        X_flat = X_augmented.reshape(X_augmented.shape[0], -1)
+        X_flat = X_np_values.reshape(X_np_values.shape[0], -1)
 
         # Normalize X
         X_flat = self._normalize_data(X_flat, method='std')
@@ -285,16 +297,14 @@ class PoseDatasetPipeline():
         X_2d = pca.fit_transform(X_flat)
 
         # Label Legend and Plot
-        classes = np.unique(y_augmented)
+        classes = np.unique(y_np_values)
         colors = plt.cm.viridis(np.linspace(0, 1, len(classes)))
 
         for i, class_id in enumerate(classes):
-            idx = y_augmented == class_id
+            idx = y_np_values == class_id
             label_name = self.encoder.inverse_transform([class_id])[0]
             ax1.scatter(X_2d[idx, 0], X_2d[idx, 1], label=label_name, color=colors[i], alpha=0.6, s=100, marker="*")
             ax2.bar(X_2d[idx, 0], X_2d[idx, 1], label=label_name, color=colors[i], alpha=0.6)
-
-        if grid_on: plt.grid()
 
         for ax in [ax1, ax2]:
             if grid_on: ax.grid()
@@ -304,10 +314,12 @@ class PoseDatasetPipeline():
         ax1.set_title("Scatter Graph", fontsize=16)
         ax2.set_title("Bar Graph", fontsize=16)
         fig.suptitle("PCA of Pose Sequences", fontsize=20)
-
         ax1.legend(loc='lower left')
         ax2.legend(loc='lower left')
+        plt.grid(grid_on)
         plt.tight_layout()
+        plt.show()
+        plt.close()
 
         if save_fig:
             try:
@@ -317,8 +329,134 @@ class PoseDatasetPipeline():
                 print(f"Error: Could not create directory for saving figures: {e}")
                 return
 
+
+    def plot_landmarks_across_time(self, pose=0, joint_index=0, save_fig=False, save_path=None, grid_on=False):
+        """
+        Visualize landmark trajectories over time for selected samples and sequences.
+
+        Args:
+            sample_indices (list, optional): List of sample indices to plot. If None, plots first sample. Defaults to None.
+            sequence_indices (list, optional): List of landmark sequence indices to plot. If None, plots all sequences. Defaults to None.
+            save_fig (bool, optional): Whether to save the plot to file. Defaults to False.
+            save_path (str, optional): Path where to save the figure. Required if save_fig is True.
+            grid_on (bool, optional): Whether to display grid lines. Defaults to False.
+
+        Notes:
+            - Creates a line plot showing how landmark positions change over time
+            - Each line represents a different landmark trajectory
+            - Different colors represent different landmarks
+            - X-axis represents time steps in the sequence
+            - Y-axis represents landmark positions/values
+
+        Raises:
+            ValueError: If save_fig is True but save_path is not provided
+            IndexError: If provided indices are out of range
+        """
+        if self.fail:
+            print(f"Plotting landmarks across time process was stopped due to {self.errors}. Please check the logs for more information.")
+            return
+
+        X_vals, Y_vals, Z_vals = [], [], []
+
+        if pose > 1019:
+            print("Error: Invalid pose number. Please enter a number between 0 and 1019.")
+            return
+
+        for frame in self.data_frames_list[pose]:  # 50 iterations for the selected data frame of a shape
+            reshaped = frame.reshape((33, 3))  # Access [:, 0], [:, 1], [:, 2]
+            X_vals.append(reshaped[joint_index:, 0])
+            Y_vals.append(reshaped[joint_index:, 1])
+            Z_vals.append(reshaped[joint_index:, 2])
+
+        # Plot the mean of X, Y, Z across time (frames)
+        plt.style.use('dark_background')
+        plt.figure(figsize=(10, 6))
+        plt.plot(X_vals, label='X', color='r')
+        plt.plot(Y_vals, label='Y', color='g')
+        plt.plot(Z_vals, label='Z', color='b')
+        plt.title("Average X, Y, Z Components Over Time")
+        plt.xlabel("Frame")
+        plt.ylabel("Mean Coordinate Value")
+        plt.legend()
+        plt.grid(grid_on)
+        plt.tight_layout()
         plt.show()
         plt.close()
+
+        if save_fig:
+            try:
+                os.makedirs(save_path, exist_ok=True)
+                plt.savefig(f'{save_path}/pose_sample_plot.png', dpi=300)
+            except Exception as e:
+                print(f"Error: Could not create directory for saving figures: {e}")
+                return
+
+
+    def plot_landmarks_clustered(self, save_fig=False, save_path=None, grid_on=False):
+        """
+        Visualize landmark data using clustering to identify pose patterns.
+
+        Args:
+            n_clusters (int, optional): Number of clusters to form. Defaults to 3.
+            sample_size (int, optional): Number of samples to use for clustering. Defaults to 1000.
+            augment (bool, optional): Whether to apply augmentation before clustering. Defaults to False.
+            save_fig (bool, optional): Whether to save the plot to file. Defaults to False.
+            save_path (str, optional): Path where to save the figure. Required if save_fig is True.
+            grid_on (bool, optional): Whether to display grid lines. Defaults to False.
+
+        Notes:
+            - Applies dimensionality reduction to landmark data
+            - Uses K-means clustering to group similar poses
+            - Creates a scatter plot showing cluster assignments
+            - Different colors represent different clusters
+            - Includes centroids of each cluster
+
+        Raises:
+            ValueError: If save_fig is True but save_path is not provided
+            ValueError: If n_clusters is less than 2
+            ValueError: If sample_size is larger than available data
+        """
+        if self.fail:
+            print(f"Plotting landmarks clustered process was stopped due to {self.errors}. Please check the logs for more information.")
+            return
+
+        # Apply t-SNE on all samples (e.g., 1000 samples of shape (99,))
+        tsne = TSNE(n_components=2, random_state=0)
+        X_flat = self.X.reshape(self.X.shape[0], -1)
+        self.data_frames_2D = tsne.fit_transform(X_flat)  # shape (n_samples, 2)
+
+        # For plotting
+        y_values = self.y_encoder  # Must be a list/array with same length as self.data_frames_list
+
+        plt.style.use('dark_background')
+        plt.figure(figsize=(10, 6))
+
+        # Label Legend and Plot
+        classes = np.unique(y_values)
+        colors = plt.cm.viridis(np.linspace(0, 1, len(classes)))
+
+        for i, class_id in enumerate(classes):
+            idx = np.where(y_values == class_id)
+            label_name = self.encoder.inverse_transform([class_id])[0]
+            plt.scatter(self.data_frames_2D[idx, 0], self.data_frames_2D[idx, 1],
+                        label=label_name, color=colors[i], alpha=0.6, s=100, marker="*")
+
+        plt.title("t-SNE Projection of Pose Embeddings")
+        plt.xlabel("Component 1")
+        plt.ylabel("Component 2")
+        plt.legend()
+        plt.grid(grid_on)
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+
+        if save_fig:
+            try:
+                os.makedirs(save_path, exist_ok=True)
+                plt.savefig(f'{save_path}/pose_sample_plot.png', dpi=300)
+            except Exception as e:
+                print(f"Error: Could not create directory for saving figures: {e}")
+                return
 
 
     @track_calls.trackcalls

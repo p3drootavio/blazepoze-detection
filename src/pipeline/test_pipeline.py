@@ -19,24 +19,12 @@ pipeline = object_pipeline.PoseDatasetPipeline(
 pipeline.load_data()
 pipeline.split_data()
 
-# Visualize a sample with augmentation applied
-pipeline.plot_sample(sample_size=500, augment=True, save_fig=True, save_path="/Users/pedrootavionascimentocamposdeoliveira/Documents/Research/pipeline_output")
+# Visualize Data
+pipeline.plot_landmarks_distribution(sample_size=500)
+pipeline.plot_landmarks_across_time(joint_index=32)
+pipeline.plot_landmarks_clustered()
 
-# Train datasets for training, validation, and testing
-train_ds = pipeline.get_tf_dataset("train", augment=True)
-val_ds = pipeline.get_tf_dataset("val")
-test_ds = pipeline.get_tf_dataset("test")
-
-# Get information about the pipeline
-print(pipeline)
-
-# Save pipeline and configurations
-pipeline.save_pipeline("/Users/pedrootavionascimentocamposdeoliveira/Documents/Research/output",
-                       save_config=True)
-
-'''
-# Load pipeline and configurations
-pipeline.load_pipeline("/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/output",
-                       True,
-                       "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/config/pipeline.config.json")
-'''
+# Create Datasets
+pipeline.get_tf_dataset("train", augment=False)
+pipeline.get_tf_dataset("val")
+pipeline.get_tf_dataset("test")

@@ -106,4 +106,3 @@ def adding_shifts(prob=0.5, shift_range=(-0.05, 0.05), clip_values=True):
         return tf.cond(tf.random.uniform([]) < prob, apply_shift, lambda: (x, y))
 
     return augment
-
