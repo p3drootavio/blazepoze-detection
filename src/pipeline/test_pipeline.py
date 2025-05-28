@@ -2,8 +2,8 @@ from src.pipeline import object_pipeline
 
 # Pipeline Initialization
 augmentation_config = {
-    "noise": [True, 0.3],
-    "scale": [True, 1.0],
+    "noise": [False, 0.3],
+    "scale": [False, 1.0],
     "shift": [False, 0.0]
 }
 
@@ -19,10 +19,8 @@ pipeline = object_pipeline.PoseDatasetPipeline(
 pipeline.load_data()
 pipeline.split_data()
 
-
 # Visualize a sample with augmentation applied
-pipeline.plot_sample(augment=False, save_fig=True)
-
+pipeline.plot_sample(sample_size=500, augment=True, save_fig=True, save_path="/Users/pedrootavionascimentocamposdeoliveira/Documents/Research/pipeline_output")
 
 # Train datasets for training, validation, and testing
 train_ds = pipeline.get_tf_dataset("train", augment=True)
@@ -32,12 +30,11 @@ test_ds = pipeline.get_tf_dataset("test")
 # Get information about the pipeline
 print(pipeline)
 
-
-'''
 # Save pipeline and configurations
-pipeline.save_pipeline("/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/output",
+pipeline.save_pipeline("/Users/pedrootavionascimentocamposdeoliveira/Documents/Research/output",
                        save_config=True)
 
+'''
 # Load pipeline and configurations
 pipeline.load_pipeline("/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/output",
                        True,

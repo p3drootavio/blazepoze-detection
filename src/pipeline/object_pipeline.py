@@ -236,7 +236,7 @@ class PoseDatasetPipeline():
                                                                                   test_size=valid_size)
 
 
-    def plot_sample(self, sample_size=100, augment=False, save_fig=False, grid_on=False):
+    def plot_sample(self, sample_size=100, augment=False, save_fig=False, save_path=None, grid_on=False):
         """
         Visualize pose data using PCA dimensionality reduction.
 
@@ -263,13 +263,13 @@ class PoseDatasetPipeline():
 
         dataset = tf.data.Dataset.from_tensor_slices((x_vis, y_vis))
         if augment:
-            x, y = dataset.map(self._augment_tn_factory(), num_parallel_calls=tf.data.AUTOTUNE)
+            dataset = dataset.map(self._augment_tn_factory(), num_parallel_calls=tf.data.AUTOTUNE)
 
         # Collect the augmented dataset into numpy arrays
         X_augmented, y_augmented = [], []
-        for x, y in dataset.take(x_vis.shape[0]):  # Limit to sample size
-            X_augmented.append(x.numpy())
-            y_augmented.append(y.numpy())
+        for x, y in dataset.as_numpy_iterator():
+            X_augmented.append(x)
+            y_augmented.append(y)
 
         X_augmented = np.array(X_augmented)
         y_augmented = np.array(y_augmented)
@@ -309,7 +309,13 @@ class PoseDatasetPipeline():
         ax2.legend(loc='lower left')
         plt.tight_layout()
 
-        if save_fig: plt.savefig('pose_sample_plot.png', dpi=300)
+        if save_fig:
+            try:
+                os.makedirs(save_path, exist_ok=True)
+                plt.savefig(f'{save_path}/pose_sample_plot.png', dpi=300)
+            except Exception as e:
+                print(f"Error: Could not create directory for saving figures: {e}")
+                return
 
         plt.show()
         plt.close()
@@ -361,25 +367,29 @@ class PoseDatasetPipeline():
             - Saves TensorFlow dataset
             - Optionally saves configuration as JSON file
         """
-        with open(save_path + ".pickle", "wb") as file:
-            pickle.dump(self.dataset.element_spec, file)
-
-        tf.data.Dataset.save(self.dataset, save_path)
-
-        if save_config:
+        try:
             os.makedirs(save_path, exist_ok=True)
 
-            current_config = {
-                "data_dir": self.data_dir,
-                "sequence_length": self.sequence_length,
-                "landmarks_dim": self.landmarks_dim,
-                "batch_size": self.batch_size,
-                "augmentation_config": self.augmentation_config
-            }
+            with open(save_path + ".pickle", "wb") as file:
+                pickle.dump(self.dataset.element_spec, file)
 
-            config_path = os.path.join(save_path, "pipeline.config.json")
-            with open(config_path, "w") as file:
-                json.dump(current_config, file, indent=4)
+            tf.data.Dataset.save(self.dataset, save_path)
+
+            if save_config:
+                current_config = {
+                    "data_dir": self.data_dir,
+                    "sequence_length": self.sequence_length,
+                    "landmarks_dim": self.landmarks_dim,
+                    "batch_size": self.batch_size,
+                    "augmentation_config": self.augmentation_config
+                }
+
+                config_path = os.path.join(save_path, "pipeline.config.json")
+                with open(config_path, "w") as file:
+                    json.dump(current_config, file, indent=4)
+
+        except Exception as e:
+            print(f"Error: Could not save pipeline: {e}")
 
 
     def load_pipeline(self, file_path, load_config=False, file_path_config=''):
