@@ -151,6 +151,17 @@ class PoseDatasetPipeline():
         return relevant_metadata + loaded_data + description_line
 
 
+    def get_classes(self):
+        return np.unique(self.y)
+
+
+    def get_classes_encoder(self):
+        return len(np.unique(self.y_encoder))
+
+
+    def get_actual_class_labels(self):
+        return self.y_encoder
+
     @track_calls.trackcalls
     def load_data(self):
         """
@@ -246,6 +257,38 @@ class PoseDatasetPipeline():
                                                                                 test_size=test_size, stratify=self.y_encoder)
         self.X_train, self.X_valid, self.y_train, self.y_valid = train_test_split(X_train_full, y_train_full,
                                                                                   test_size=valid_size)
+
+
+    @track_calls.trackcalls
+    def get_tf_dataset(self, split="train", augment=False):
+        """
+        Create a TensorFlow dataset for the specified split.
+
+        Args:
+            split (str, optional): Which dataset split to use - "train", "val", or "test". Defaults to "train".
+            augment (bool, optional): Whether to apply data augmentation. Defaults to False.
+
+        Returns:
+            tf.data.Dataset: TensorFlow dataset with the specified configuration.
+        """
+        if self.fail:
+            print("An error occurred and dataset could not be created. Please check the logs for more information.")
+            return
+        if self.load_data.has_been_called and self.split_data.has_been_called:
+            self.split = split
+            if split == "val":
+                return self._create_tf_dataset(self.X_valid, self.y_valid, augment=augment, shuffle=True)
+            elif split == "test":
+                return self._create_tf_dataset(self.X_test, self.y_test, augment=augment, shuffle=True)
+            elif split == "train":
+                return self._create_tf_dataset(self.X_train, self.y_train, augment=augment, shuffle=True)
+            else:
+                print(f"Error: Invalid split specified. Expected 'train', 'val', or 'test', got {split}")
+                self.fail = True
+                return None
+        else:
+            print(f"Error: Data was not loaded or splitted yet. Please call load_data() and split_data() first.")
+            return None
 
 
     def plot_landmarks_distribution(self, sample_size=100, augment=False, save_fig=False, save_path=None, grid_on=False):
@@ -457,39 +500,6 @@ class PoseDatasetPipeline():
             except Exception as e:
                 print(f"Error: Could not create directory for saving figures: {e}")
                 return
-
-
-    @track_calls.trackcalls
-    def get_tf_dataset(self, split="train", augment=False):
-        """
-        Create a TensorFlow dataset for the specified split.
-
-        Args:
-            split (str, optional): Which dataset split to use - "train", "val", or "test". Defaults to "train".
-            augment (bool, optional): Whether to apply data augmentation. Defaults to False.
-
-        Returns:
-            tf.data.Dataset: TensorFlow dataset with the specified configuration.
-        """
-
-        if self.fail:
-            print("An error occurred and dataset could not be created. Please check the logs for more information.")
-            return
-        if self.load_data.has_been_called and self.split_data.has_been_called:
-            self.split = split
-            if split == "val":
-                return self._create_tf_dataset(self.X_valid, self.y_valid, augment=augment, shuffle=True)
-            elif split == "test":
-                return self._create_tf_dataset(self.X_test, self.y_test, augment=augment, shuffle=True)
-            elif split == "train":
-                return self._create_tf_dataset(self.X_train, self.y_train, augment=augment, shuffle=True)
-            else:
-                print(f"Error: Invalid split specified. Expected 'train', 'val', or 'test', got {split}")
-                self.fail = True
-                return None
-        else:
-            print(f"Error: Data was not loaded or splitted yet. Please call load_data() and split_data() first.")
-            return None
 
 
     def save_pipeline(self, save_path, save_config=False):
