@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 
 from src.pipeline import object_pipeline
 from src.pipeline import tnc_model
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
+from tensorflow.keras.callbacks import EarlyStopping
 
 # Pipeline Initialization
 augmentation_config = {
@@ -35,10 +36,11 @@ train_dataset = pipeline.get_tf_dataset("train", augment=False)
 val_dataset = pipeline.get_tf_dataset("val")
 test_dataset = pipeline.get_tf_dataset("test")
 
+# TCN Model Configuration
 input_shape = (50, 99)
 dilations = [1, 2, 4, 8, 16, 32]
 
-# Create the model
+# Create Model and Compile it
 model = tnc_model.build_tcn(
     input_shape=input_shape,
     filters=64,
@@ -46,23 +48,28 @@ model = tnc_model.build_tcn(
     dilations=dilations,
     num_blocks=6,
     dropout_rate=0.2,
-    output_units=pipeline.get_classes_encoder()
+    output_units=pipeline.get(classes_encoded=True),
 )
 
 model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 model.summary()
 
-# Train and test the model
+# Train and Test Model
+early_stopping = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
+
 history = model.fit(
     train_dataset,
     validation_data=val_dataset,
-    epochs=20,
+    epochs=30,
     batch_size=32,
+    callbacks=[early_stopping]
 )
 
+# Evaluate Model
 loss = model.evaluate(test_dataset)
 print(f"Test Loss: {loss}", end="\n\n")
 
+# Predict on Test Dataset
 X_batch, y_true = None, None
 for batch in test_dataset.take(1):
     X_batch, y_true = batch
@@ -70,13 +77,14 @@ for batch in test_dataset.take(1):
 y_pred = model.predict(X_batch)
 predicted_classes = np.argmax(y_pred, axis=1)
 
-class_names = pipeline.get_classes()
+class_names = pipeline.get(classes=True)
 predicted_labels = [class_names[i] for i in predicted_classes]
 true_labels = [class_names[i] for i in y_true.numpy()]
 
 print(f"Predicted labels: {predicted_labels}", end="\n\n")
 print(f"True labels: {true_labels}", end="\n\n")
 
+# Classification Report
 report = classification_report(y_true, predicted_classes, target_names=class_names, output_dict=True)
 print(report)
 
@@ -87,4 +95,11 @@ plt.colorbar()
 plt.xticks(range(len(class_names)), class_names, rotation=90)
 plt.yticks(range(len(class_names)), class_names)
 plt.title("Classification Report")
+plt.show()
+
+# Confusion Matrix
+cm = confusion_matrix(y_true, predicted_classes)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+disp.plot()
+plt.title("Confusion Matrix")
 plt.show()

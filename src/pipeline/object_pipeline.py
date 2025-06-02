@@ -151,17 +151,6 @@ class PoseDatasetPipeline():
         return relevant_metadata + loaded_data + description_line
 
 
-    def get_classes(self):
-        return np.unique(self.y)
-
-
-    def get_classes_encoder(self):
-        return len(np.unique(self.y_encoder))
-
-
-    def get_actual_class_labels(self):
-        return self.y_encoder
-
     @track_calls.trackcalls
     def load_data(self):
         """
@@ -194,7 +183,8 @@ class PoseDatasetPipeline():
                     if (file.endswith(file_config)):
                         pose_df = pd.read_csv(file_path)
 
-                        if pose_df.shape != (self.sequence_length, self.landmarks_dim + 1): continue  # +1 for 'Unnamed: 0'
+                        if pose_df.shape != (self.sequence_length, self.landmarks_dim + 1):
+                            continue  # +1 for 'Unnamed: 0'
 
                         self.frame_data = pose_df.drop(columns=pose_df.columns[0]).values.astype(np.float32)  # Shape: (50, 99)
                         self.data_frames_list.append(self.frame_data)
@@ -566,6 +556,17 @@ class PoseDatasetPipeline():
                 print(f"Error: File not found: {file_path_config}")
             except json.JSONDecodeError:
                 print(f"Invalid JSON format in {file_path_config}")
+
+
+    def get(self, classes=False, classes_encoded=False, class_labels=False):
+        if classes:
+            return np.unique(self.y)
+        elif classes_encoded:
+            return len(np.unique(self.y_encoder))
+        elif class_labels:
+            return self.y_encoder
+        else:
+            return self.__str__()
 
 
     def _augment_tn_factory(self):
