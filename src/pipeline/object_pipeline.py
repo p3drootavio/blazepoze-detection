@@ -10,12 +10,9 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import matplotlib.pyplot as plt
 from pandas.errors import EmptyDataError
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 
 # Local libraries
 from src.utils import data_augmentation, track_calls, validators

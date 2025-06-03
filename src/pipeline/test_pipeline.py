@@ -6,7 +6,8 @@ from sklearn.metrics import confusion_matrix, classification_report, ConfusionMa
 from tensorflow.keras.callbacks import EarlyStopping
 
 # local modules
-from src.pipeline import tnc_model
+from src.pipeline.tcn_model2_weak import TemporalConvNet
+from src.pipeline.tnc_model1_strong import build_tcn as tcn
 from src.pipeline.object_pipeline import PoseDatasetPipeline
 from src.visualization.pose_visualizer import PoseVisualizer
 
@@ -36,29 +37,35 @@ def main():
     pipeline.load_data()
     pipeline.split_data()
 
+    '''
     # Visualize Data
     visualizer = PoseVisualizer(pipeline)
     visualizer.plot_landmarks_distribution(sample_size=500)
     visualizer.plot_landmarks_across_time(joint_index=32)
     visualizer.plot_landmarks_clustered()
+    '''
 
     # Create Datasets
     train_dataset = pipeline.get_tf_dataset("train", augment=False)
     val_dataset = pipeline.get_tf_dataset("val")
     test_dataset = pipeline.get_tf_dataset("test")
 
+    # Ensure datasets are not empty
+    if train_dataset is None or val_dataset is None or test_dataset is None:
+        raise ValueError("One or more datasets are empty")
+
     # TCN Model Configuration
-    input_shape = (50, 99)
+    input_shape = (SEQUENCE_LENGTH, LANDMARKS_DIM)
     dilations = [1, 2, 4, 8, 16, 32]
 
     # Create Model and Compile it
-    model = tnc_model.build_tcn(
+    model = tcn(
         input_shape=input_shape,
-        filters=64,
+        filters=[64, 128],
         kernel_size=3,
         dilations=dilations,
         num_blocks=6,
-        dropout_rate=0.2,
+        base_rate=0.2,
         output_units=pipeline.class_names_encoded,
     )
 
@@ -72,7 +79,6 @@ def main():
         train_dataset,
         validation_data=val_dataset,
         epochs=EPOCHS,
-        batch_size=32,
         callbacks=[early_stopping]
     )
 
@@ -106,6 +112,7 @@ def main():
     plt.xticks(range(len(class_names)), class_names, rotation=90)
     plt.yticks(range(len(class_names)), class_names)
     plt.title("Classification Report")
+    plt.tight_layout()
     plt.show()
 
     # Confusion Matrix
@@ -113,10 +120,11 @@ def main():
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
     disp.plot()
     plt.title("Confusion Matrix")
+    plt.tight_layout()
     plt.show()
 
     # Save Model
-    model.save(DIR_ROOT + "/output/model.keras")
+    model.save(DIR_ROOT + "/models/model.keras")
     pd.DataFrame(history.history).to_csv(DIR_ROOT + "/output/history.csv", index=False)
 
 if __name__ == "__main__":

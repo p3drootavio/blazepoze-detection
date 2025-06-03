@@ -3,15 +3,21 @@ from tensorflow.keras.layers import Layer, Conv1D, Activation, Dropout, Add, Lay
 from tensorflow.keras.models import Model
 from tensorflow.keras import Input
 
+@tf.keras.utils.register_keras_serializable()
 class TemporalBlock(Layer):
-    def __init__(self, filters, kernel_size, dilation_rate, dropout=0.2, activation="relu"):
-        super(TemporalBlock, self).__init__()
-        self.conv1 = Conv1D(filters, kernel_size, padding="same", dilation_rate=dilation_rate)
+    def __init__(self, filters, kernel_size, dilation_rate, padding="causal", dropout=0.2, activation="relu", **kwargs):
+        super(TemporalBlock, self).__init__(**kwargs)
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.dilation_rate = dilation_rate
+        self.dropout = dropout
+
+        self.conv1 = Conv1D(filters[0], kernel_size, padding=padding, dilation_rate=dilation_rate)
         self.norm1 = LayerNormalization()
         self.act1 = Activation(activation)
         self.drop1 = Dropout(dropout)
 
-        self.conv2 = Conv1D(filters, kernel_size, padding="same", dilation_rate=dilation_rate)
+        self.conv2 = Conv1D(filters[1], kernel_size, padding=padding, dilation_rate=dilation_rate)
         self.norm2 = LayerNormalization()
         self.act2 = Activation(activation)
         self.drop2 = Dropout(dropout)
@@ -19,10 +25,24 @@ class TemporalBlock(Layer):
         self.downsample = None
         self.add = Add()
 
+    def get_config(self):
+        config = super(TemporalBlock, self).get_config()
+        config.update({
+            'filters': self.filters,
+            'kernel_size': self.kernel_size,
+            'dilation_rate': self.dilation_rate,
+            'dropout': self.dropout
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
 
     def build(self, input_shape):
         if input_shape[-1] != self.conv2.filters:
-            self.downsample = Conv1D(self.conv2.filters, 1, strides=self.conv2.strides)
+            self.downsample = Conv1D(self.conv2.filters, 1, strides=self.conv2.strides, padding="same")
 
 
     def call(self, inputs):
@@ -43,11 +63,12 @@ class TemporalBlock(Layer):
         return self.add([x, res])
 
 
-def build_tcn(input_shape, filters, kernel_size, dilations, num_blocks, dropout_rate=0.0, output_units=1):
+def build_tcn(input_shape, filters, kernel_size, dilations, num_blocks, base_rate=0.0, output_units=1):
     inputs = Input(shape=input_shape, dtype=tf.float32)
     x = inputs
 
     for i in range(num_blocks):
+        dropout_rate = base_rate * (i / num_blocks)
         x = TemporalBlock(
             filters=filters,
             kernel_size=kernel_size,
