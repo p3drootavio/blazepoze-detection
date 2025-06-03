@@ -61,7 +61,7 @@ def main():
     # Create Model and Compile it
     model = tcn(
         input_shape=input_shape,
-        filters=[64, 128],
+        filters=64,
         kernel_size=3,
         dilations=dilations,
         num_blocks=6,
