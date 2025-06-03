@@ -6,18 +6,33 @@ from tensorflow.keras import Input
 @tf.keras.utils.register_keras_serializable()
 class TemporalBlock(Layer):
     def __init__(self, filters, kernel_size, dilation_rate, padding="causal", dropout=0.2, activation="relu", **kwargs):
+        """A Temporal Convolutional Network (TCN) block implementation.
+
+        This block consists of two dilated causal convolution layers with normalization,
+        activation, and dropout, followed by a residual connection. If the input and output
+        dimensions don't match, a 1x1 convolution is used to match dimensions.
+
+        Args:
+            filters (int): Number of filters in the first convolution layer. The second layer uses twice this number.
+            kernel_size (int): Size of the convolutional kernel.
+            dilation_rate (int): Dilation rate for the temporal convolutions.
+            padding (str, optional): Padding method for convolutions. Defaults to "causal".
+            dropout (float, optional): Dropout rate. Defaults to 0.2.
+            activation (str, optional): Activation function to use. Defaults to "relu".
+            **kwargs: Additional keyword arguments passed to the parent Layer class.
+        """
         super(TemporalBlock, self).__init__(**kwargs)
         self.filters = filters
         self.kernel_size = kernel_size
         self.dilation_rate = dilation_rate
         self.dropout = dropout
 
-        self.conv1 = Conv1D(filters[0], kernel_size, padding=padding, dilation_rate=dilation_rate)
+        self.conv1 = Conv1D(filters, kernel_size, padding=padding, dilation_rate=dilation_rate)
         self.norm1 = LayerNormalization()
         self.act1 = Activation(activation)
         self.drop1 = Dropout(dropout)
 
-        self.conv2 = Conv1D(filters[1], kernel_size, padding=padding, dilation_rate=dilation_rate)
+        self.conv2 = Conv1D(filters * 2, kernel_size, padding=padding, dilation_rate=dilation_rate)
         self.norm2 = LayerNormalization()
         self.act2 = Activation(activation)
         self.drop2 = Dropout(dropout)
@@ -26,6 +41,11 @@ class TemporalBlock(Layer):
         self.add = Add()
 
     def get_config(self):
+        """Returns the configuration of the layer.
+
+        Returns:
+            dict: Configuration dictionary containing the layer's parameters.
+        """
         config = super(TemporalBlock, self).get_config()
         config.update({
             'filters': self.filters,
@@ -37,15 +57,41 @@ class TemporalBlock(Layer):
 
     @classmethod
     def from_config(cls, config):
+        """Creates a layer from its configuration.
+
+        Args:
+            config (dict): Layer configuration dictionary.
+
+        Returns:
+            TemporalBlock: A new instance of the layer.
+        """
         return cls(**config)
 
 
     def build(self, input_shape):
+        """Builds the layer based on input shape.
+
+        Creates a downsample convolution if input channels don't match output channels.
+
+        Args:
+            input_shape (tuple): Shape of the input tensor.
+        """
         if input_shape[-1] != self.conv2.filters:
             self.downsample = Conv1D(self.conv2.filters, 1, strides=self.conv2.strides, padding="same")
 
 
     def call(self, inputs):
+        """Forward pass of the layer.
+
+        Applies the temporal block operations: two sets of convolution, normalization,
+        activation, and dropout, followed by a residual connection.
+
+        Args:
+            inputs (tf.Tensor): Input tensor.
+
+        Returns:
+            tf.Tensor: Output tensor after applying the temporal block operations.
+        """
         x = self.conv1(inputs)
         x = self.norm1(x)
         x = self.act1(x)
@@ -64,6 +110,22 @@ class TemporalBlock(Layer):
 
 
 def build_tcn(input_shape, filters, kernel_size, dilations, num_blocks, base_rate=0.0, output_units=1):
+    """Builds a Temporal Convolutional Network (TCN) model.
+
+    Args:
+        input_shape (tuple): Shape of the input data (sequence_length, features).
+        filters (int): Number of filters in each temporal block.
+        kernel_size (int): Size of the convolutional kernel.
+        dilations (list): List of dilation rates for each temporal block.
+        num_blocks (int): Number of temporal blocks in the network.
+        base_rate (float, optional): Base dropout rate. The actual dropout rate increases
+            linearly with block depth. Defaults to 0.0.
+        output_units (int, optional): Number of output units in the final dense layer.
+            Defaults to 1.
+
+    Returns:
+        tf.keras.Model: Compiled TCN model with the specified architecture.
+    """
     inputs = Input(shape=input_shape, dtype=tf.float32)
     x = inputs
 
