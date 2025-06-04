@@ -319,7 +319,7 @@ class PoseDatasetPipeline():
                 self.fail = True
                 return None
         else:
-            logger.warning(f"Error: Data was not loaded or splitted yet. Please call load_data() and split_data() first.")
+            logger.warning(f"Error: Data was not loaded or split yet. Please call load_data() and split_data() first.")
             return None
 
 
