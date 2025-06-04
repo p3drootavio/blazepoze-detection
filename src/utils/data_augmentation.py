@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorboard.compat.tensorflow_stub.dtypes import float32
 
 
 def adding_gaussian_noise(prob=0.5, mean=0.0, stddev=0.01, clip_values=True):
@@ -26,7 +25,7 @@ def adding_gaussian_noise(prob=0.5, mean=0.0, stddev=0.01, clip_values=True):
         x = tf.cast(x, tf.float32)
 
         def apply_noise():
-            noise = tf.random.normal(tf.shape(x), mean=mean, stddev=stddev, dtype=float32)
+            noise = tf.random.normal(tf.shape(x), mean=mean, stddev=stddev, dtype=tf.float32)
             noised = x + noise
             if clip_values:
                 noised = tf.clip_by_value(noised, 0.0, 1.0)
@@ -87,9 +86,7 @@ def adding_shifts(prob=0.5, shift_range=(-0.05, 0.05), clip_values=True):
     def _validate_inputs():
         tf.debugging.assert_greater_equal(prob, 0.0, message="`prob` must be greater or equal than 0.")
         tf.debugging.assert_less_equal(prob, 1.0, message="`prob` must be less or equal than 1.")
-        tf.debugging.assert_greater_equal(shift_range[0], 0.0, message="`shift_range[0]` must be greater or equal than 0.")
-        tf.debugging.assert_greater_equal(shift_range[1], 0.0, message="`shift_range[1]` must be greater or equal than 0.")
-        tf.debugging.assert_less_equal(shift_range[0], shift_range[1], message="`shift_range[0]` must be less than `shift_range[1]`")
+        tf.debugging.assert_less(shift_range[0], shift_range[1], message="`shift_range[0]` must be less than `shift_range[1]`")
 
     @tf.function
     def augment(x, y):
@@ -97,7 +94,7 @@ def adding_shifts(prob=0.5, shift_range=(-0.05, 0.05), clip_values=True):
         x = tf.cast(x, tf.float32)
 
         def apply_shift():
-            shift = tf.random.uniform([tf.shape(x)], shift_range[0], shift_range[1])
+            shift = tf.random.uniform(tf.shape(x), shift_range[0], shift_range[1])
             shifted = x + shift
             if clip_values:
                 shifted = tf.clip_by_value(shifted, 0.0, 1.0)
