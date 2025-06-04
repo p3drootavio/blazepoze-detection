@@ -40,7 +40,7 @@ Then run in Command Prompt:
 
 ```bash
 mo \
-  --input_model /path/to/tcn_model.onnx \
+  --input_model /path/to/pose_tcn.onnx \
   --input_shape "[1,50,99]" \
   --data_type FP16 \
   --output_dir /path/to/output_ir

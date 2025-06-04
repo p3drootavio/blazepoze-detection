@@ -85,7 +85,7 @@ def create_video(frame_dir, output_path, frame_rate=10):
 
 def main():
     # Read the CSV file
-    path = "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/data"
+    path = "/data"
     frame_data_list = load_data(path)
 
     if not frame_data_list:
@@ -97,7 +97,7 @@ def main():
     create_frame_images(frame_data_list, 4, output_dir)
 
     # Create video
-    video_path = "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/output/validation.mp4"
+    video_path = "/output/validation.mp4"
     create_video(output_dir, video_path)
 
     print("Video saved as validation.mp4")

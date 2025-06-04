@@ -15,7 +15,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
 # Local libraries
-from src.utils import data_augmentation, track_calls, validators
+from src.blazepoze.utils import logging_utils
+from src.blazepoze.utils import augment, validation
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ class PoseDatasetPipeline():
     Raises
     ------
     Exception
-        If augmentation_config format is invalid
+        If augmentation.json format is invalid
     AssertionError
         If loaded data doesn't match expected dimensions
     """
@@ -132,7 +133,7 @@ class PoseDatasetPipeline():
                 and float is probability in range [0-1].
 
         Raises:
-            Exception: If augmentation_config format is invalid.
+            Exception: If augmentation.json format is invalid.
         """
         self.data_dir = data_dir
         self.sequence_length = sequence_length
@@ -142,11 +143,11 @@ class PoseDatasetPipeline():
         self.fail = False
         self.errors = []
 
-        if validators.check_instance(augmentation_config):
+        if validation.check_instance(augmentation_config):
             self.augmentation_config = augmentation_config
         else:
             raise Exception("""An error occurred when trying to configure augmentation specifications.
-            Make sure the attribute augmentation_config follows the following format:
+            Make sure the attribute augmentation.json follows the following format:
             {'augmentation': [bool, float]} where augmentation is noise, scale, or shift and float is [0-1]
             """)
 
@@ -193,7 +194,7 @@ class PoseDatasetPipeline():
         return relevant_metadata + loaded_data + description_line
 
 
-    @track_calls.trackcalls
+    @logging_utils.trackcalls
     def load_data(self):
         """
         Load pose landmark data from the specified directory.
@@ -268,7 +269,7 @@ class PoseDatasetPipeline():
             self.errors.append(f"Unknown error occurred: {e}")
 
 
-    @track_calls.trackcalls
+    @logging_utils.trackcalls
     def split_data(self, test_size=0.2, valid_size=0.1):
         """
         Split the loaded data into training, validation, and test sets.
@@ -291,7 +292,7 @@ class PoseDatasetPipeline():
                                                                                   test_size=valid_size)
 
 
-    @track_calls.trackcalls
+    @logging_utils.trackcalls
     def get_tf_dataset(self, split="train", augment=False):
         """
         Create a TensorFlow dataset for the specified split.
@@ -350,7 +351,7 @@ class PoseDatasetPipeline():
                     "sequence_length": self.sequence_length,
                     "landmarks_dim": self.landmarks_dim,
                     "batch_size": self.batch_size,
-                    "augmentation_config": self.augmentation_config
+                    "augmentation.json": self.augmentation_config
                 }
 
                 config_path = os.path.join(save_path, "pipeline.config.json")
@@ -414,9 +415,9 @@ class PoseDatasetPipeline():
         """
         def apply_aug(x, y):
             functions = {
-                "noise": data_augmentation.adding_gaussian_noise,
-                "scale": data_augmentation.adding_scaling,
-                "shift": data_augmentation.adding_shifts
+                "noise": augment.adding_gaussian_noise,
+                "scale": augment.adding_scaling,
+                "shift": augment.adding_shifts
             }
 
             for fn, (enabled, probability) in self.augmentation_config.items():

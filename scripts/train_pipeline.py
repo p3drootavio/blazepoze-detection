@@ -6,10 +6,9 @@ from sklearn.metrics import confusion_matrix, classification_report, ConfusionMa
 from tensorflow.keras.callbacks import EarlyStopping
 
 # local modules
-from src.pipeline.tcn_model2_weak import TemporalConvNet
-from src.pipeline.tnc_model1_strong import build_tcn as tcn
-from src.pipeline.object_pipeline import PoseDatasetPipeline
-from src.visualization.pose_visualizer import PoseVisualizer
+from src.blazepoze.pipeline.tnc_model_strong import build_tcn as tcn
+from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
+
 
 def main():
     SEQUENCE_LENGTH = 50
@@ -20,7 +19,7 @@ def main():
 
     # Pipeline Initialization
     augmentation_config = {
-        "noise": [False, 0.3],
+        "noise": [True, 0.3],
         "scale": [False, 1.0],
         "shift": [False, 0.0]
     }
@@ -124,7 +123,7 @@ def main():
     plt.show()
 
     # Save Model
-    model.save(DIR_ROOT + "/models/model.keras")
+    model.save(DIR_ROOT + "/models/pretrained/pose_tcn.keras")
     pd.DataFrame(history.history).to_csv(DIR_ROOT + "/output/history.csv", index=False)
 
 if __name__ == "__main__":

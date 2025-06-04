@@ -1,4 +1,4 @@
-from src.pipeline.depthai_pipeline import DepthAIPipeline
+from src.blazepoze.pipeline.depthai import DepthAIPipeline
 
 
 def main():
