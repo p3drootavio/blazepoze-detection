@@ -1,43 +1,74 @@
 # BlazePoze: Human Pose Classification Pipeline
-   
-This project implements a complete machine learning pipeline to classify human poses based on 3D landmark sequences. The pipeline supports data preprocessing, augmentation, training-ready dataset generation, and visualization for pose recognition tasks.
 
-## 🚀 Features
+BlazePoze provides a full workflow for preparing 3D pose datasets, training Temporal Convolutional Networks (TCNs) and deploying the resulting model to Luxonis OAK cameras. The library includes data augmentation utilities, visualization helpers and scripts for exporting models.
 
-- Custom TensorFlow data pipeline
-- Augmentation with noise, scaling, and shifting
-- PCA visualization of pose clusters
-- Configurable and modular design
+## Features
 
----
+- TensorFlow data pipeline for sequences of 3D landmarks
+- Augmentation functions (Gaussian noise, scaling and shifting)
+- Pose visualization using PCA and t-SNE
+- TCN architectures for classification or regression
+- Export to ONNX and DepthAI `.blob`
 
-## 📦 Installation
-   
+## Installation
+
 1. Clone the repository
 2. Create a virtual environment: `python -m venv .venv`
-3. Activate the virtual environment:
+3. Activate the environment:
    - Windows: `.venv\Scripts\activate`
-   - Unix/MacOS: `source .venv/bin/activate`
-4. Install requirements: `pip install -r requirements.txt`
-   
-## 🧪 Run the Pipeline
+   - Unix/macOS: `source .venv/bin/activate`
+4. Install dependencies: `pip install -r requirements.txt`
 
-```python
-from src.blazepoze.pipeline import pose_dataset
+## Repository Structure
 
-pipeline = object_pipeline.PoseDatasetPipeline(
-   data_dir="data",
-   sequence_length=50,
-   landmarks_dim=99,
-   batch_size=32,
-   augmentation_config={
-      "noise": [True, 0.5],
-      "scale": [True, 0.3],
-      "shift": [True, 0.2]
-   }
-)
+- `src/blazepoze/` – library code (datasets, models, utils)
+- `scripts/` – training and conversion scripts
+- `models/` – pre-trained (`pretrained/`) and exported (`exported/`) models
 
-pipeline.load_data()
-pipeline.split_data()
-pipeline.plot_sample(augment=True, save_fig=True)
+## Dataset Format
+
+The training pipeline expects a folder of CSV files organised by label:
+
 ```
+<data_dir>/
+└── <label>/
+    ├── sample_d__landmarks.csv
+    ├── sample_p__landmarks.csv
+    └── ...
+```
+
+Each CSV contains 50 frames with 99 landmark values per frame.
+
+## Usage
+
+### Training
+Edit the paths inside `scripts/train_pipeline.py` and run:
+
+```bash
+python scripts/train_pipeline.py
+```
+
+### Converting to ONNX
+After training a Keras model, export it:
+
+```bash
+python scripts/convert_to_onnx.py
+```
+
+See `scripts/convert_onnx_to_blob.md` for instructions on producing a `.blob` for DepthAI devices.
+
+### DepthAI Demo
+Connect an OAK camera and run:
+
+```bash
+python scripts/run_depthai.py
+```
+
+## Additional Utilities
+
+- `scripts/verify_data.py` – visualise CSV sequences and create a video
+- `src/blazepoze/visualization/pose_visualizer.py` – PCA, t-SNE and time-series plots
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
