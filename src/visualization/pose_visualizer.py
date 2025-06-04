@@ -68,18 +68,26 @@ class PoseVisualizer():
 
     def plot_landmarks_distribution(self, sample_size=100, save_fig=False, save_path=None, grid_on=False):
         """
-        Visualize pose data using PCA dimensionality reduction.
+        Visualize pose data distribution using PCA dimensionality reduction.
 
-        Args:
-            sample_size (int, optional): Number of samples to visualize. Defaults to 50000.
-            augment (bool, optional): Whether to apply augmentation before visualization. Defaults to False.
-            save_fig (bool, optional): Whether to save the plot to file. Defaults to False.
-            grid_on (bool, optional): Whether to display grid lines. Defaults to False.
+        This method creates a figure with two subplots: a scatter plot and a bar plot
+        showing the distribution of pose landmarks after PCA reduction to 2D.
 
-        Creates two subplots:
-            1. Scatter plot of first two principal components
-            2. Bar plot of the same data
-        Both plots are color-coded by class labels.
+        Parameters
+        ----------
+        sample_size : int, optional
+            Number of samples to visualize, by default 100
+        save_fig : bool, optional
+            Whether to save the figure to disk, by default False
+        save_path : str, optional
+            Path where to save the figure if save_fig is True, by default None
+        grid_on : bool, optional
+            Whether to display grid lines on the plots, by default False
+
+        Returns
+        -------
+        None
+            Displays the plot and optionally saves it to disk
         """
         x_vis = self.X_train[:sample_size]
         y_vis = self.y_train[:sample_size]
@@ -139,25 +147,28 @@ class PoseVisualizer():
 
     def plot_landmarks_across_time(self, pose=0, joint_index=0, save_fig=False, save_path=None, grid_on=False):
         """
-        Visualize landmark trajectories over time for selected samples and sequences.
+        Visualize landmark trajectories over time for selected poses and joints.
 
-        Args:
-            sample_indices (list, optional): List of sample indices to plot. If None, plots first sample. Defaults to None.
-            sequence_indices (list, optional): List of landmark sequence indices to plot. If None, plots all sequences. Defaults to None.
-            save_fig (bool, optional): Whether to save the plot to file. Defaults to False.
-            save_path (str, optional): Path where to save the figure. Required if save_fig is True.
-            grid_on (bool, optional): Whether to display grid lines. Defaults to False.
+        Creates a line plot showing the X, Y, Z coordinates of a specific joint
+        across all frames for a given pose sequence.
 
-        Notes:
-            - Creates a line plot showing how landmark positions change over time
-            - Each line represents a different landmark trajectory
-            - Different colors represent different landmarks
-            - X-axis represents time steps in the sequence
-            - Y-axis represents landmark positions/values
+        Parameters
+        ----------
+        pose : int, optional
+            Index of the pose sequence to visualize, by default 0
+        joint_index : int, optional
+            Index of the joint to track (0-32), by default 0
+        save_fig : bool, optional
+            Whether to save the figure to disk, by default False
+        save_path : str, optional
+            Path where to save the figure if save_fig is True, by default None
+        grid_on : bool, optional
+            Whether to display grid lines on the plot, by default False
 
-        Raises:
-            ValueError: If save_fig is True but save_path is not provided
-            IndexError: If provided indices are out of range
+        Returns
+        -------
+        None
+            Displays the plot and optionally saves it to disk
         """
         if pose >= len(self.data_frames_list):
             print("Error: Invalid pose number.")
@@ -192,27 +203,24 @@ class PoseVisualizer():
 
     def plot_landmarks_clustered(self, save_fig=False, save_path=None, grid_on=False):
         """
-        Visualize landmark data using clustering to identify pose patterns.
+        Visualize landmark data clustering using t-SNE dimensionality reduction.
 
-        Args:
-            n_clusters (int, optional): Number of clusters to form. Defaults to 3.
-            sample_size (int, optional): Number of samples to use for clustering. Defaults to 1000.
-            augment (bool, optional): Whether to apply augmentation before clustering. Defaults to False.
-            save_fig (bool, optional): Whether to save the plot to file. Defaults to False.
-            save_path (str, optional): Path where to save the figure. Required if save_fig is True.
-            grid_on (bool, optional): Whether to display grid lines. Defaults to False.
+        Creates a scatter plot of pose landmarks in 2D space after applying t-SNE
+        dimensionality reduction, with different colors representing different pose classes.
 
-        Notes:
-            - Applies dimensionality reduction to landmark data
-            - Uses K-means clustering to group similar poses
-            - Creates a scatter plot showing cluster assignments
-            - Different colors represent different clusters
-            - Includes centroids of each cluster
+        Parameters
+        ----------
+        save_fig : bool, optional
+            Whether to save the figure to disk, by default False
+        save_path : str, optional
+            Path where to save the figure if save_fig is True, by default None
+        grid_on : bool, optional
+            Whether to display grid lines on the plot, by default False
 
-        Raises:
-            ValueError: If save_fig is True but save_path is not provided
-            ValueError: If n_clusters is less than 2
-            ValueError: If sample_size is larger than available data
+        Returns
+        -------
+        None
+            Displays the plot and optionally saves it to disk
         """
         X_flat = self.X.reshape(self.X.shape[0], -1)
 
