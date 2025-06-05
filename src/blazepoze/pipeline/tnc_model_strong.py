@@ -142,3 +142,34 @@ def build_tcn(input_shape, filters, kernel_size, dilations, num_blocks, base_rat
     x = tf.keras.layers.Dense(output_units, activation='softmax')(x)
 
     return Model(inputs=inputs, outputs=x, name="TCN")
+
+
+def build_tcn_for_oak(input_shape_fake, real_shape, filters, kernel_size, dilations, num_blocks, base_rate=0.0, output_units=1):
+    """
+    Builds a TCN model compatible with OAK blob conversion.
+    This function fakes a 3-channel image input and reshapes it internally to the real input shape.
+
+    Args:
+        input_shape_fake (tuple): Fake image-like input shape, e.g., (3, 10, 165)
+        real_shape (tuple): Actual shape expected by the TCN, e.g., (50, 99)
+        filters, kernel_size, dilations, num_blocks, base_rate, output_units: Same as original build_tcn()
+
+    Returns:
+        tf.keras.Model: Wrapped model that is blob-compatible.
+    """
+    inputs = Input(shape=input_shape_fake, name="oak_input")
+    x = tf.keras.layers.Reshape(real_shape, name="reshape_to_sequence")(inputs)
+
+    for i in range(num_blocks):
+        dropout_rate = base_rate * (i / num_blocks)
+        x = TemporalBlock(
+            filters=filters,
+            kernel_size=kernel_size,
+            dilation_rate=dilations[i],
+            dropout=dropout_rate
+        )(x)
+
+    x = tf.keras.layers.GlobalAveragePooling1D()(x)
+    x = tf.keras.layers.Dense(output_units, activation='softmax')(x)
+
+    return Model(inputs=inputs, outputs=x, name="TCN_OAK_WRAPPED")

@@ -1,3 +1,5 @@
+import time
+
 import depthai as dai
 import cv2 as cv
 import numpy as np
@@ -51,10 +53,14 @@ class DepthAIPipeline:
                              "2. You have necessary permissions to access the device\n"
                              "3. The device is not being used by another application")
 
+        self._createNeuralNetworkNodes(self.pipeline)
+
         try:
             with dai.Device(self.pipeline) as device:
                 self.leftQueue = device.getOutputQueue(name="left")
                 self.rightQueue = device.getOutputQueue(name="right")
+                self.nn_input_queue = device.getInputQueue(name="nn_input")
+                self.nn_output_queue = device.getOutputQueue(name="nn_output", maxSize=1, blocking=False)
 
                 # Set display window name
                 cv.namedWindow("window", cv.WINDOW_NORMAL)
@@ -70,9 +76,18 @@ class DepthAIPipeline:
 
                     cv.imshow("window", imOut)
 
-                    self._checkKeyboardInput(sideBySide)
-        except dai.error.DeviceUnavailableError:
-            print("Device disconnected or is being used by another application")
+                    sideBySide = self._checkKeyboardInput(sideBySide)
+
+                    self._prepare_input(self.nn_input_queue)
+
+                    #time.sleep(2)
+
+                    if self.nn_output_queue.has():
+                        result = self.nn_output_queue.get()
+                        prediction = np.array(result.getFirstLayerFp16())
+                        label = np.argmax(prediction)
+                        print("Prediction:", label)
+
         except Exception as e:
             print(f"An error occurred: {str(e)}")
         finally:
@@ -158,3 +173,29 @@ class DepthAIPipeline:
         elif key == ord('t'):
             sideBySide = not sideBySide
             return sideBySide
+
+
+    def _createNeuralNetworkNodes(self, pipeline):
+        # Add NeuralNetwork Node
+        self.nn = pipeline.create(dai.node.NeuralNetwork)
+        self.nn.setBlobPath("/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/models/deployed/pose_classifier_oak.blob")
+        self.nn.setNumInferenceThreads(2)
+        self.nn.input.setBlocking(False)
+
+        # Add XLinkIn for Input to Model
+        self.nn_in = self.pipeline.create(dai.node.XLinkIn)
+        self.nn_in.setStreamName("nn_input")
+        self.nn_in.out.link(self.nn.input)
+
+        # Add XLinkOut for Output from Model
+        self.nn_out = self.pipeline.create(dai.node.XLinkOut)
+        self.nn_out.setStreamName("nn_output")
+        self.nn.out.link(self.nn_out.input)
+
+
+    def _prepare_input(self, input_queue):
+        self.fake_input = np.random.rand(1, 3, 10, 165).astype(np.float32)  # Or use your real reshaped pose sequence
+        nn_data = dai.NNData()
+        nn_data.setLayer("oak_input", self.fake_input.flatten())
+        input_queue.send(nn_data)
+
