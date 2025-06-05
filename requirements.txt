@@ -5,6 +5,7 @@ keras
 lxml
 matplotlib
 numpy
+opencv-python
 pandas
 pillow
 protobuf
