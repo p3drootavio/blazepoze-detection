@@ -285,12 +285,24 @@ class PoseDatasetPipeline():
         if self.fail:
             logger.warning(f"Splitting data process was stopped due to {self.errors}. Please check the logs for more information.")
             return
+        counts = np.bincount(self.y_encoder)
+        stratify = self.y_encoder if np.min(counts) >= 2 else None
 
-        X_train_full, self.X_test, y_train_full, self.y_test = train_test_split(self.X, self.y_encoder,
-                                                                                test_size=test_size, stratify=self.y_encoder)
-        self.X_train, self.X_valid, self.y_train, self.y_valid = train_test_split(X_train_full, y_train_full,
-                                                                                  test_size=valid_size)
+        X_train_full, self.X_test, y_train_full, self.y_test = train_test_split(
+            self.X, self.y_encoder, test_size=test_size, stratify=stratify
+        )
 
+        if len(y_train_full) > 1:
+            counts_train = np.bincount(y_train_full)
+            stratify_val = y_train_full if np.min(counts_train) >= 2 else None
+            self.X_train, self.X_valid, self.y_train, self.y_valid = train_test_split(
+                X_train_full, y_train_full, test_size=valid_size, stratify=stratify_val
+            )
+        else:
+            self.X_train = X_train_full
+            self.X_valid = np.empty((0, self.sequence_length, self.landmarks_dim))
+            self.y_train = y_train_full
+            self.y_valid = np.empty((0,), dtype=y_train_full.dtype)
 
     @logging_utils.trackcalls
     def get_tf_dataset(self, split="train", augment=False):
