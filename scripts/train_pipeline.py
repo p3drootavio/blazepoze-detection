@@ -36,14 +36,6 @@ def main():
     pipeline.load_data()
     pipeline.split_data()
 
-    '''
-    # Visualize Data
-    visualizer = PoseVisualizer(pipeline)
-    visualizer.plot_landmarks_distribution(sample_size=500)
-    visualizer.plot_landmarks_across_time(joint_index=32)
-    visualizer.plot_landmarks_clustered()
-    '''
-
     # Create Datasets
     train_dataset = pipeline.get_tf_dataset("train", augment=False)
     val_dataset = pipeline.get_tf_dataset("val")
@@ -125,6 +117,7 @@ def main():
     # Save Model
     model.save(DIR_ROOT + "/models/pretrained/pose_tcn.keras")
     pd.DataFrame(history.history).to_csv(DIR_ROOT + "/output/history.csv", index=False)
+
 
 if __name__ == "__main__":
     main()

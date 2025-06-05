@@ -228,8 +228,15 @@ class PoseDatasetPipeline():
 
                         if pose_df.shape != (self.sequence_length, self.landmarks_dim + 1):
                             continue  # +1 for 'Unnamed: 0'
+                        '''
+                        if pose_df.shape != (self.sequence_length, self.landmarks_dim):
+                            logging.warning(
+                                f"Skipping {file_path}: got {pose_df.shape}, expected {(self.sequence_length, self.landmarks_dim)}")
+                            continue
+                        '''
 
                         self.frame_data = pose_df.drop(columns=pose_df.columns[0]).values.astype(np.float32)  # Shape: (50, 99)
+                        #self.frame_data = pose_df.values.astype(np.float32)  # Don't drop anything if no index
                         self.data_frames_list.append(self.frame_data)
 
                         X_data.append(self.frame_data)
@@ -286,11 +293,21 @@ class PoseDatasetPipeline():
             logger.warning(f"Splitting data process was stopped due to {self.errors}. Please check the logs for more information.")
             return
 
-        X_train_full, self.X_test, y_train_full, self.y_test = train_test_split(self.X, self.y_encoder,
-                                                                                test_size=test_size, stratify=self.y_encoder)
-        self.X_train, self.X_valid, self.y_train, self.y_valid = train_test_split(X_train_full, y_train_full,
-                                                                                  test_size=valid_size)
+        counts = np.bincount(self.y_encoder)
+        stratify = self.y_encoder if np.min(counts) >=2  else None
 
+        X_train_full, self.X_test, y_train_full, self.y_test = train_test_split(self.X, self.y_encoder,
+                                                                                test_size=test_size, stratify=stratify)
+
+        if len(y_train_full) > 1:
+            counts_train = np.bincount(y_train_full)
+            stratify_train = y_train_full if np.min(counts_train) >=2  else None
+            self.X_train, self.X_valid, self.y_train, self.y_valid = train_test_split(X_train_full, y_train_full,                                                                           test_size=valid_size, stratify=stratify_train)
+        else:
+            self.X_train = X_train_full
+            self.X_valid = np.empty((0, self.sequence_length, self.landmarks_dim))
+            self.y_train = y_train_full
+            self.y_valid = np.empty((0,), dtype=y_train_full.dtype)
 
     @logging_utils.trackcalls
     def get_tf_dataset(self, split="train", augment=False):
