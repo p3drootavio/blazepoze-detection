@@ -3,35 +3,30 @@ import cv2 as cv
 import numpy as np
 
 class DepthAIPipeline:
-    """A class to manage and control an OAK (OpenCV AI Kit) stereo camera pipeline.
+    """A class to manage and control an OAK (OpenCV AI Kit) camera pipeline.
 
-    This class initializes and manages a DepthAI pipeline for stereo vision,
-    configuring both left and right mono cameras and their respective output streams.
+    This class initializes and manages a DepthAI pipeline for capturing RGB
+    frames with a color camera. The setup is easily extendable for additional
+    cameras or neural network nodes in the future.
     """
     def __init__(self, blob_file_path):
-        """Initialize the DepthAI pipeline with stereo camera configuration.
+        """Initialize the DepthAI pipeline with a color camera configuration.
 
         Sets up the basic pipeline structure including:
-        - Left and right mono cameras
-        - XLink outputs for both cameras
-        - Links between cameras and their respective outputs
+        - Color camera for RGB frames
+        - XLink output for the camera stream
         """
         self.blob_file_path = blob_file_path
         self.pipeline = dai.Pipeline()
 
-        self.monoLeft = self._getMonoCamera(self.pipeline, isLeft=True)
-        self.monoRight = self._getMonoCamera(self.pipeline, isLeft=False)
+        self.colorCam = self._getColorCamera(self.pipeline)
+        self.xoutRgb = self._createXLinkOut(self.pipeline)
 
-        self.xoutLeft = self._createXLinkOut(self.pipeline, isLeft=True)
-        self.xoutRight = self._createXLinkOut(self.pipeline, isLeft=False)
-
-        self.monoLeft.out.link(self.xoutLeft.input)
-        self.monoRight.out.link(self.xoutRight.input)
+        self.colorCam.video.link(self.xoutRgb.input)
 
 
     def __str__(self):
-        mono_left_configured = hasattr(self, 'monoLeft')
-        mono_right_configured = hasattr(self, 'monoRight')
+        rgb_configured = hasattr(self, 'colorCam')
         pipeline_created = hasattr(self, 'pipeline')
         nn_configured = hasattr(self, 'nn')
         input_shape = getattr(self, 'fake_input', None)
@@ -41,10 +36,9 @@ class DepthAIPipeline:
             f"DepthAIPipeline Summary:\n"
             f"  - Blob File Path        : {self.blob_file_path}\n"
             f"  - Pipeline Created      : {'Yes' if pipeline_created else 'No'}\n"
-            f"  - Mono Left Camera      : {'Configured' if mono_left_configured else 'Not Configured'}\n"
-            f"  - Mono Right Camera     : {'Configured' if mono_right_configured else 'Not Configured'}\n"
-            f"  - Mono Resolution       : 720p\n"
-            f"  - Frame Rate            : 40 FPS\n"
+            f"  - RGB Camera           : {'Configured' if rgb_configured else 'Not Configured'}\n"
+            f"  - Resolution           : 1080p\n"
+            f"  - Frame Rate           : 30 FPS\n"
             f"  - Neural Network Config : {'Yes' if nn_configured else 'No'}\n"
             f"  - NN Input Shape        : {input_shape_str}\n"
             f"  - NN Input Stream       : {'nn_input' if hasattr(self, 'nn_in') else 'Not Configured'}\n"
@@ -52,7 +46,7 @@ class DepthAIPipeline:
         )
 
 
-    def connectDevice(self, sideBySide=True):
+    def connectDevice(self):
         """Connect to the OAK device and start the video stream."""
         self._validate_device_available()
         self._createNeuralNetworkNodes(self.pipeline)
@@ -60,7 +54,7 @@ class DepthAIPipeline:
         try:
             with dai.Device(self.pipeline) as device:
                 self._initialize_queues(device)
-                self._start_streaming_loop(sideBySide)
+                self._start_streaming_loop()
 
         except Exception as e:
             print(f"An error occurred: {str(e)}")
@@ -78,33 +72,23 @@ class DepthAIPipeline:
 
 
     def _initialize_queues(self, device):
-        self.leftQueue = device.getOutputQueue(name="left")
-        self.rightQueue = device.getOutputQueue(name="right")
+        self.rgbQueue = device.getOutputQueue(name="rgb")
         self.nn_input_queue = device.getInputQueue(name="nn_input")
         self.nn_output_queue = device.getOutputQueue(name="nn_output", maxSize=1, blocking=False)
 
 
-    def _start_streaming_loop(self, sideBySide):
+    def _start_streaming_loop(self):
         cv.namedWindow("window", cv.WINDOW_NORMAL)
 
         while True:
-            leftFrame = self._getFrame(self.leftQueue)
-            rightFrame = self._getFrame(self.rightQueue)
+            frame = self._getFrame(self.rgbQueue)
 
-            imOut = self._compose_frames(leftFrame, rightFrame, sideBySide)
-            cv.imshow("window", imOut)
+            cv.imshow("window", frame)
 
-            sideBySide = self._checkKeyboardInput(sideBySide)
+            self._checkKeyboardInput()
 
             self._prepare_input(self.nn_input_queue)
             self._handle_nn_output()
-
-
-    def _compose_frames(self, leftFrame, rightFrame, sideBySide):
-        if sideBySide:
-            return np.hstack((leftFrame, rightFrame))
-        else:
-            return np.uint8(((leftFrame / 2) + (rightFrame / 2)))
 
 
     def _handle_nn_output(self):
@@ -115,48 +99,37 @@ class DepthAIPipeline:
             print("Prediction:", label)
 
 
-    def _createXLinkOut(self, pipeline, isLeft=False):
+    def _createXLinkOut(self, pipeline):
         """Create an XLinkOut node for the pipeline.
 
         Args:
             pipeline (dai.Pipeline): The DepthAI pipeline instance.
-            isLeft (bool, optional): If True, creates output for left camera.
-                If False, creates output for right camera. Defaults to False.
 
         Returns:
-            dai.node.XLinkOut: Configured XLinkOut node.
+            dai.node.XLinkOut: Configured XLinkOut node for RGB output.
         """
-        mono = pipeline.createXLinkOut()
-        mono.setStreamName("left") if isLeft else mono.setStreamName("right")
-        return mono
+        xout = pipeline.createXLinkOut()
+        xout.setStreamName("rgb")
+        return xout
 
 
-    def _getMonoCamera(self, pipeline, isLeft=False):
-        """Configure and create a mono camera node.
+    def _getColorCamera(self, pipeline):
+        """Configure and create a color camera node.
 
-        Sets up a mono camera with 720p resolution at 40 FPS.
+        Sets up an RGB camera with 1080p resolution at 30 FPS.
 
         Args:
             pipeline (dai.Pipeline): The DepthAI pipeline instance.
-            isLeft (bool, optional): If True, configures left camera.
-                If False, configures right camera. Defaults to False.
 
         Returns:
-            dai.node.MonoCamera: Configured mono camera node.
+            dai.node.ColorCamera: Configured color camera node.
         """
-        # Configure mono camera
-        mono = pipeline.createMonoCamera()
-
-        # Set camera resolution
-        mono.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
-
-        # Set camera FPS
-        mono.setFps(40)
-
-        # Set camera name
-        mono.setBoardSocket(dai.CameraBoardSocket.LEFT) if isLeft else mono.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-
-        return mono
+        color = pipeline.create(dai.node.ColorCamera)
+        color.setBoardSocket(dai.CameraBoardSocket.RGB)
+        color.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        color.setInterleaved(False)
+        color.setFps(30)
+        return color
 
 
     def _getFrame(self, queue):
@@ -172,18 +145,11 @@ class DepthAIPipeline:
         return self.frame.getCvFrame()
 
 
-    def _checkKeyboardInput(self, sideBySide):
+    def _checkKeyboardInput(self):
         """Handle keyboard input for camera view control.
 
         Processes keyboard input for:
         - 'q': Quit the application
-        - 't': Toggle between side-by-side and overlapped view
-
-        Args:
-            sideBySide (bool): Current state of the display mode.
-
-        Returns:
-            bool: Updated state of sideBySide if 't' is pressed.
 
         Raises:
             StopIteration: If 'q' is pressed to quit the application.
@@ -191,9 +157,6 @@ class DepthAIPipeline:
         key = cv.waitKey(1)
         if key == ord('q'):
             raise StopIteration
-        elif key == ord('t'):
-            sideBySide = not sideBySide
-            return sideBySide
 
 
     def _createNeuralNetworkNodes(self, pipeline):
