@@ -1,5 +1,3 @@
-import time
-
 import depthai as dai
 import cv2 as cv
 import numpy as np
@@ -10,7 +8,7 @@ class DepthAIPipeline:
     This class initializes and manages a DepthAI pipeline for stereo vision,
     configuring both left and right mono cameras and their respective output streams.
     """
-    def __init__(self):
+    def __init__(self, blob_file_path):
         """Initialize the DepthAI pipeline with stereo camera configuration.
 
         Sets up the basic pipeline structure including:
@@ -18,6 +16,7 @@ class DepthAIPipeline:
         - XLink outputs for both cameras
         - Links between cameras and their respective outputs
         """
+        self.blob_file_path = blob_file_path
         self.pipeline = dai.Pipeline()
 
         self.monoLeft = self._getMonoCamera(self.pipeline, isLeft=True)
@@ -30,68 +29,90 @@ class DepthAIPipeline:
         self.monoRight.out.link(self.xoutRight.input)
 
 
+    def __str__(self):
+        mono_left_configured = hasattr(self, 'monoLeft')
+        mono_right_configured = hasattr(self, 'monoRight')
+        pipeline_created = hasattr(self, 'pipeline')
+        nn_configured = hasattr(self, 'nn')
+        input_shape = getattr(self, 'fake_input', None)
+        input_shape_str = input_shape.shape if input_shape is not None else "Unknown"
+
+        return (
+            f"DepthAIPipeline Summary:\n"
+            f"  - Blob File Path        : {self.blob_file_path}\n"
+            f"  - Pipeline Created      : {'Yes' if pipeline_created else 'No'}\n"
+            f"  - Mono Left Camera      : {'Configured' if mono_left_configured else 'Not Configured'}\n"
+            f"  - Mono Right Camera     : {'Configured' if mono_right_configured else 'Not Configured'}\n"
+            f"  - Mono Resolution       : 720p\n"
+            f"  - Frame Rate            : 40 FPS\n"
+            f"  - Neural Network Config : {'Yes' if nn_configured else 'No'}\n"
+            f"  - NN Input Shape        : {input_shape_str}\n"
+            f"  - NN Input Stream       : {'nn_input' if hasattr(self, 'nn_in') else 'Not Configured'}\n"
+            f"  - NN Output Stream      : {'nn_output' if hasattr(self, 'nn_out') else 'Not Configured'}\n"
+        )
+
+
     def connectDevice(self, sideBySide=True):
-        """Connect to the OAK device and start the video stream.
-
-        Creates a connection to the OAK device, initializes output queues,
-        and displays the camera feeds in a window. The display can be either
-        side-by-side or overlapped views of both cameras.
-
-        Args:
-            sideBySide (bool, optional): If True, displays left and right frames
-                side by side. If False, displays an overlapped view. Defaults to True.
-
-        Raises:
-            RuntimeError: If no DepthAI device is found or cannot be accessed.
-            dai.error.DeviceUnavailableError: If device disconnects or is being used
-                by another application.
-        """
-        available_devices = dai.Device.getAllAvailableDevices()
-        if len(available_devices) == 0:
-            raise RuntimeError("No DepthAI device found! Please ensure that:\n"
-                             "1. The OAK camera is properly connected\n"
-                             "2. You have necessary permissions to access the device\n"
-                             "3. The device is not being used by another application")
-
+        """Connect to the OAK device and start the video stream."""
+        self._validate_device_available()
         self._createNeuralNetworkNodes(self.pipeline)
 
         try:
             with dai.Device(self.pipeline) as device:
-                self.leftQueue = device.getOutputQueue(name="left")
-                self.rightQueue = device.getOutputQueue(name="right")
-                self.nn_input_queue = device.getInputQueue(name="nn_input")
-                self.nn_output_queue = device.getOutputQueue(name="nn_output", maxSize=1, blocking=False)
-
-                # Set display window name
-                cv.namedWindow("window", cv.WINDOW_NORMAL)
-
-                while True:
-                    leftFrame = self._getFrame(self.leftQueue)
-                    rightFrame = self._getFrame(self.rightQueue)
-
-                    if sideBySide:
-                        imOut = np.hstack((leftFrame, rightFrame))
-                    else:
-                        imOut = np.uint8(((leftFrame / 2) + (rightFrame / 2)))
-
-                    cv.imshow("window", imOut)
-
-                    sideBySide = self._checkKeyboardInput(sideBySide)
-
-                    self._prepare_input(self.nn_input_queue)
-
-                    #time.sleep(2)
-
-                    if self.nn_output_queue.has():
-                        result = self.nn_output_queue.get()
-                        prediction = np.array(result.getFirstLayerFp16())
-                        label = np.argmax(prediction)
-                        print("Prediction:", label)
+                self._initialize_queues(device)
+                self._start_streaming_loop(sideBySide)
 
         except Exception as e:
             print(f"An error occurred: {str(e)}")
         finally:
             cv.destroyAllWindows()
+
+
+    def _validate_device_available(self):
+        available_devices = dai.Device.getAllAvailableDevices()
+        if not available_devices:
+            raise RuntimeError("No DepthAI device found! Please ensure that:\n"
+                               "1. The OAK camera is properly connected\n"
+                               "2. You have necessary permissions to access the device\n"
+                               "3. The device is not being used by another application")
+
+
+    def _initialize_queues(self, device):
+        self.leftQueue = device.getOutputQueue(name="left")
+        self.rightQueue = device.getOutputQueue(name="right")
+        self.nn_input_queue = device.getInputQueue(name="nn_input")
+        self.nn_output_queue = device.getOutputQueue(name="nn_output", maxSize=1, blocking=False)
+
+
+    def _start_streaming_loop(self, sideBySide):
+        cv.namedWindow("window", cv.WINDOW_NORMAL)
+
+        while True:
+            leftFrame = self._getFrame(self.leftQueue)
+            rightFrame = self._getFrame(self.rightQueue)
+
+            imOut = self._compose_frames(leftFrame, rightFrame, sideBySide)
+            cv.imshow("window", imOut)
+
+            sideBySide = self._checkKeyboardInput(sideBySide)
+
+            self._prepare_input(self.nn_input_queue)
+            self._handle_nn_output()
+
+
+    def _compose_frames(self, leftFrame, rightFrame, sideBySide):
+        if sideBySide:
+            return np.hstack((leftFrame, rightFrame))
+        else:
+            return np.uint8(((leftFrame / 2) + (rightFrame / 2)))
+
+
+    def _handle_nn_output(self):
+        if self.nn_output_queue.has():
+            result = self.nn_output_queue.get()
+            prediction = np.array(result.getFirstLayerFp16())
+            label = np.argmax(prediction)
+            print("Prediction:", label)
 
 
     def _createXLinkOut(self, pipeline, isLeft=False):
@@ -178,7 +199,7 @@ class DepthAIPipeline:
     def _createNeuralNetworkNodes(self, pipeline):
         # Add NeuralNetwork Node
         self.nn = pipeline.create(dai.node.NeuralNetwork)
-        self.nn.setBlobPath("/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/models/deployed/pose_classifier_oak.blob")
+        self.nn.setBlobPath(self.blob_file_path)
         self.nn.setNumInferenceThreads(2)
         self.nn.input.setBlocking(False)
 
