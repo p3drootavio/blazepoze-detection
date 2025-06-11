@@ -58,10 +58,12 @@ python scripts/convert_to_onnx.py
 See `scripts/convert_onnx_to_blob.md` for instructions on producing a `.blob` for DepthAI devices.
 
 ### DepthAI Demo
-Connect an OAK camera and run:
+Connect an OAK camera and run the demo by providing paths to both the
+gesture classifier and BlazePose blobs:
 
 ```bash
-python scripts/run_depthai.py
+python scripts/run_depthai.py --classifier-blob models/deployed/pose_classifier_oak.blob \
+                             --pose-blob path/to/blazepose.blob
 ```
 
 ## Additional Utilities
