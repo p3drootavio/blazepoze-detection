@@ -22,6 +22,8 @@ class DepthAIPipeline:
         self.colorCam = self._getColorCamera(self.pipeline)
         self.xoutRgb = self._createXLinkOut(self.pipeline)
 
+        self.blazepose_out = None
+
         self.colorCam.video.link(self.xoutRgb.input)
 
 
@@ -73,6 +75,7 @@ class DepthAIPipeline:
 
     def _initialize_queues(self, device):
         self.rgbQueue = device.getOutputQueue(name="rgb")
+        self.blazepose_queue = device.getOutputQueue(name="blazepose_output")
         self.nn_input_queue = device.getInputQueue(name="nn_input")
         self.nn_output_queue = device.getOutputQueue(name="nn_output", maxSize=1, blocking=False)
 
@@ -160,26 +163,48 @@ class DepthAIPipeline:
 
 
     def _createNeuralNetworkNodes(self, pipeline):
-        # Add NeuralNetwork Node
+        # BlazePose NN (stage 1)
+        self.blazepose_nn = pipeline.create(dai.node.NeuralNetwork)
+        self.blazepose_nn.setBlobPath("blazepose.blob")  # <-- Set path to your BlazePose .blob
+        self.blazepose_nn.setNumInferenceThreads(2)
+        self.blazepose_nn.input.setBlocking(False)
+        self.colorCam.video.link(self.blazepose_nn.input)
+
+        # Output from BlazePose
+        self.blazepose_out = pipeline.create(dai.node.XLinkOut)
+        self.blazepose_out.setStreamName("blazepose_output")
+        self.blazepose_nn.out.link(self.blazepose_out.input)
+
+        # Gesture Classifier NN (stage 2)
         self.nn = pipeline.create(dai.node.NeuralNetwork)
         self.nn.setBlobPath(self.blob_file_path)
         self.nn.setNumInferenceThreads(2)
         self.nn.input.setBlocking(False)
 
-        # Add XLinkIn for Input to Model
-        self.nn_in = self.pipeline.create(dai.node.XLinkIn)
+        # XLinkIn for manually feeding keypoints
+        self.nn_in = pipeline.create(dai.node.XLinkIn)
         self.nn_in.setStreamName("nn_input")
         self.nn_in.out.link(self.nn.input)
 
-        # Add XLinkOut for Output from Model
-        self.nn_out = self.pipeline.create(dai.node.XLinkOut)
+        # XLinkOut for gesture output
+        self.nn_out = pipeline.create(dai.node.XLinkOut)
         self.nn_out.setStreamName("nn_output")
         self.nn.out.link(self.nn_out.input)
 
 
     def _prepare_input(self, input_queue):
-        self.fake_input = np.random.rand(1, 3, 10, 165).astype(np.float32)  # Or use your real reshaped pose sequence
-        nn_data = dai.NNData()
-        nn_data.setLayer("oak_input", self.fake_input.flatten())
-        input_queue.send(nn_data)
+        if self.blazepose_queue.has():
+            result = self.blazepose_queue.get()
+            keypoints = np.array(result.getFirstLayerFp16())  # shape: (4950,) for (1, 3, 10, 165)
 
+            # Optional: validate or reshape if needed
+            if keypoints.size != 4950:
+                print("Unexpected BlazePose output size:", keypoints.shape)
+                return
+
+            nn_data = dai.NNData()
+            nn_data.setLayer("oak_input", keypoints)
+            input_queue.send(nn_data)
+
+            # Save for __str__
+            self.fake_input = keypoints.reshape(1, 3, 10, 165)
