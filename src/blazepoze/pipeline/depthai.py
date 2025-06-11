@@ -1,3 +1,4 @@
+import os
 import depthai as dai
 import cv2 as cv
 import numpy as np
@@ -9,7 +10,7 @@ class DepthAIPipeline:
     frames with a color camera. The setup is easily extendable for additional
     cameras or neural network nodes in the future.
     """
-    def __init__(self, blob_file_path):
+    def __init__(self, blob_file_path, blazepose_blob_path="blazepose.blob"):
         """Initialize the DepthAI pipeline with a color camera configuration.
 
         Sets up the basic pipeline structure including:
@@ -17,7 +18,18 @@ class DepthAIPipeline:
         - XLink output for the camera stream
         """
         self.blob_file_path = blob_file_path
+        self.blazepose_blob_path = blazepose_blob_path
         self.pipeline = dai.Pipeline()
+
+        if not os.path.exists(self.blazepose_blob_path):
+            raise FileNotFoundError(
+                f"BlazePose blob not found: {self.blazepose_blob_path}"
+            )
+
+        if not os.path.exists(self.blob_file_path):
+            raise FileNotFoundError(
+                f"Classifier blob not found: {self.blob_file_path}"
+            )
 
         self.colorCam = self._getColorCamera(self.pipeline)
         self.xoutRgb = self._createXLinkOut(self.pipeline)
@@ -37,6 +49,7 @@ class DepthAIPipeline:
         return (
             f"DepthAIPipeline Summary:\n"
             f"  - Blob File Path        : {self.blob_file_path}\n"
+            f"  - BlazePose Blob Path   : {self.blazepose_blob_path}\n"
             f"  - Pipeline Created      : {'Yes' if pipeline_created else 'No'}\n"
             f"  - RGB Camera           : {'Configured' if rgb_configured else 'Not Configured'}\n"
             f"  - Resolution           : 1080p\n"
@@ -165,7 +178,7 @@ class DepthAIPipeline:
     def _createNeuralNetworkNodes(self, pipeline):
         # BlazePose NN (stage 1)
         self.blazepose_nn = pipeline.create(dai.node.NeuralNetwork)
-        self.blazepose_nn.setBlobPath("blazepose.blob")  # <-- Set path to your BlazePose .blob
+        self.blazepose_nn.setBlobPath(self.blazepose_blob_path)
         self.blazepose_nn.setNumInferenceThreads(2)
         self.blazepose_nn.input.setBlocking(False)
         self.colorCam.video.link(self.blazepose_nn.input)
