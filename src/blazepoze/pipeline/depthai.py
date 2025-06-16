@@ -1,7 +1,12 @@
 import os
+import logging
+import time
+
 import depthai as dai
 import cv2 as cv
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 class DepthAIPipeline:
     """A class to manage and control an OAK (OpenCV AI Kit) camera pipeline.
@@ -97,22 +102,37 @@ class DepthAIPipeline:
         cv.namedWindow("window", cv.WINDOW_NORMAL)
 
         while True:
-            frame = self._getFrame(self.rgbQueue)
-
-            cv.imshow("window", frame)
-
-            self._checkKeyboardInput()
+            self._getFrame(self.rgbQueue)
 
             self._prepare_input(self.nn_input_queue)
             self._handle_nn_output()
+
+            cv.imshow("window", self.frame)
+
+            self._checkKeyboardInput()
 
 
     def _handle_nn_output(self):
         if self.nn_output_queue.has():
             result = self.nn_output_queue.get()
             prediction = np.array(result.getFirstLayerFp16())
-            label = np.argmax(prediction)
-            print("Prediction:", label)
+            label = int(np.argmax(prediction))
+            logger.info("Prediction: %s", label)
+
+            if hasattr(self, "frame"):
+                cv.putText(
+                    self.frame,
+                    str(label),
+                    (10, 30),
+                    cv.FONT_HERSHEY_SIMPLEX,
+                    1.0,
+                    (0, 255, 0),
+                    2,
+                )
+
+            if hasattr(self, "inference_start"):
+                duration = time.time() - self.inference_start
+                logger.info("Inference time: %.3f s", duration)
 
 
     def _createXLinkOut(self, pipeline):
@@ -162,8 +182,8 @@ class DepthAIPipeline:
         Returns:
             numpy.ndarray: Frame converted to OpenCV format.
         """
-        self.frame = queue.get()
-        return self.frame.getCvFrame()
+        self.frame = queue.get().getCvFrame()
+        return self.frame
 
 
     def _checkKeyboardInput(self):
@@ -223,6 +243,7 @@ class DepthAIPipeline:
             nn_data = dai.NNData()
             nn_data.setLayer("oak_input", keypoints)
             input_queue.send(nn_data)
+            self.inference_start = time.time()
 
             # Save for __str__
             self.fake_input = keypoints.reshape(1, 3, 10, 165)

@@ -1,4 +1,7 @@
 # Third-party libraries
+import argparse
+import os
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,11 +17,18 @@ from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Train ED-TCN model")
+    parser.add_argument("--data-dir", required=True)
+    parser.add_argument("--output-dir", default="models")
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch-size", type=int, default=32)
+    args = parser.parse_args()
+
     SEQUENCE_LENGTH = 50
     LANDMARKS_DIM = 99
-    BATCH_SIZE = 32
-    EPOCHS = 100
-    DIR_ROOT = "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch"
+    BATCH_SIZE = args.batch_size
+    EPOCHS = args.epochs
+    DIR_ROOT = args.output_dir
 
     # Pipeline Initialization
     augmentation_config = {
@@ -28,7 +38,7 @@ def main():
     }
 
     pipeline = PoseDatasetPipeline(
-        data_dir=DIR_ROOT + "/data",
+        data_dir=args.data_dir,
         sequence_length=SEQUENCE_LENGTH,
         landmarks_dim=LANDMARKS_DIM,
         batch_size=BATCH_SIZE,
@@ -124,8 +134,9 @@ def main():
     plt.show()
 
     # Save Model
-    model.save(DIR_ROOT + "/models/pretrained/pose_tcn.keras")
-    pd.DataFrame(history.history).to_csv(DIR_ROOT + "/output/history.csv", index=False)
+    os.makedirs(os.path.join(DIR_ROOT, "pretrained"), exist_ok=True)
+    model.save(os.path.join(DIR_ROOT, "pretrained", "pose_tcn.keras"))
+    pd.DataFrame(history.history).to_csv(os.path.join(DIR_ROOT, "history.csv"), index=False)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ BlazePoze provides a full workflow for preparing 3D pose datasets, training Temp
    - Windows: `.venv\Scripts\activate`
    - Unix/macOS: `source .venv/bin/activate`
 4. Install dependencies: `pip install -r requirements.txt`
+5. (Optional) Install the project in editable mode: `pip install -e .`
 
 ## Repository Structure
 
@@ -55,7 +56,11 @@ After training a Keras model, export it:
 python scripts/convert_to_onnx.py
 ```
 
-See `scripts/convert_onnx_to_blob.md` for instructions on producing a `.blob` for DepthAI devices.
+To convert the ONNX model to a DepthAI blob use:
+
+```bash
+python scripts/onnx_to_blob.py path/to/model.onnx
+```
 
 ### DepthAI Demo
 Connect an OAK camera and run the demo by providing paths to both the
