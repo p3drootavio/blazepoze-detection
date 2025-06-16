@@ -1,4 +1,7 @@
 # Third-party libraries
+import argparse
+import os
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,11 +14,16 @@ from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Train OAK-ready model")
+    parser.add_argument("--data-dir", required=True, help="Dataset directory")
+    parser.add_argument("--output-dir", default="models", help="Directory for outputs")
+    args = parser.parse_args()
+
     SEQUENCE_LENGTH = 50
     LANDMARKS_DIM = 99
     BATCH_SIZE = 32
     EPOCHS = 30
-    DIR_ROOT = "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch"
+    DIR_ROOT = args.output_dir
 
     # Pipeline Initialization
     augmentation_config = {
@@ -25,7 +33,7 @@ def main():
     }
 
     pipeline = PoseDatasetPipeline(
-        data_dir=DIR_ROOT + "/data",
+        data_dir=args.data_dir,
         sequence_length=SEQUENCE_LENGTH,
         landmarks_dim=LANDMARKS_DIM,
         batch_size=BATCH_SIZE,
@@ -63,7 +71,8 @@ def main():
     )
 
     # Save Model
-    model.save(DIR_ROOT + "/models/pretrained/pose_classifier_oak.keras")
+    os.makedirs(DIR_ROOT, exist_ok=True)
+    model.save(os.path.join(DIR_ROOT, "pose_classifier_oak.keras"))
 
 if __name__ == "__main__":
     main()
