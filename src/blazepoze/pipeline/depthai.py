@@ -145,6 +145,11 @@ class DepthAIPipeline:
         color.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         color.setInterleaved(False)
         color.setFps(30)
+
+        # Set preview size to match BlazePose input
+        color.setPreviewSize(256, 256)  # or 224x224 or whatever your model expects
+        color.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+
         return color
 
 
@@ -181,7 +186,7 @@ class DepthAIPipeline:
         self.blazepose_nn.setBlobPath(self.blazepose_blob_path)
         self.blazepose_nn.setNumInferenceThreads(2)
         self.blazepose_nn.input.setBlocking(False)
-        self.colorCam.video.link(self.blazepose_nn.input)
+        self.colorCam.preview.link(self.blazepose_nn.input)
 
         # Output from BlazePose
         self.blazepose_out = pipeline.create(dai.node.XLinkOut)

@@ -62,7 +62,7 @@ Connect an OAK camera and run the demo by providing paths to both the
 gesture classifier and BlazePose blobs:
 
 ```bash
-python scripts/run_depthai.py --classifier-blob models/deployed/pose_classifier_oak.blob \
+python scripts/run_depthai.py --classifier-blob models/deployed/blazepose.blob \
                              --pose-blob path/to/blazepose.blob
 ```
 
