@@ -71,6 +71,13 @@ python scripts/run_depthai.py --classifier-blob models/deployed/blazepose.blob \
                              --pose-blob path/to/blazepose.blob
 ```
 
+### Simplified DepthAI Demo
+For a minimal pipeline that only requires the classifier blob you can run:
+
+```bash
+python scripts/run_depthai_simplified.py --classifier-blob models/deployed/blazepose.blob
+```
+
 ## Additional Utilities
 
 - `scripts/verify_data.py` – visualise CSV sequences and create a video
