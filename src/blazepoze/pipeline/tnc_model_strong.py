@@ -3,6 +3,7 @@ from tensorflow.keras.layers import Layer, Conv1D, Activation, Dropout, Add, Lay
 from tensorflow.keras.models import Model
 from tensorflow.keras import Input
 
+
 @tf.keras.utils.register_keras_serializable()
 class TemporalBlock(Layer):
     def __init__(self, filters, kernel_size, dilation_rate, padding="causal", dropout=0.2, activation="relu", **kwargs):

@@ -2,12 +2,6 @@
 import argparse
 import os
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
-from tensorflow.keras.callbacks import EarlyStopping
-
 # local modules
 from src.blazepoze.pipeline.tnc_model_strong import build_tcn_for_oak as tcnoak
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
