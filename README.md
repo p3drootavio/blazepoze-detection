@@ -1,88 +1,88 @@
-# BlazePoze: Human Pose Classification Pipeline
+# BlazePoze Action Recognition
 
-BlazePoze provides a full workflow for preparing 3D pose datasets, training Temporal Convolutional Networks (TCNs) and deploying the resulting model to Luxonis OAK cameras. The library includes data augmentation utilities, visualization helpers and scripts for exporting models.
+BlazePoze is a lightweight pipeline for classifying human actions from real-time 3D pose data streamed by a Luxonis OAK-D camera. The project combines on-device landmark detection with a Temporal Convolutional Network (TCN) running on the host CPU.
 
 ## Features
 
-- TensorFlow data pipeline for sequences of 3D landmarks
-- Augmentation functions (Gaussian noise, scaling and shifting)
-- Pose visualization using PCA and t-SNE
-- TCN architectures for classification or regression
-- Export to ONNX and DepthAI `.blob`
+- DepthAI-based BlazePose detector for on-device 3D landmarks
+- TensorFlow/Keras TCN classifier for recognizing actions
+- Data pipeline with optional augmentation utilities
+- Training and live inference scripts for easy experimentation
 
-## Installation
-
-1. Clone the repository
-2. Create a virtual environment: `python -m venv .venv`
-3. Activate the environment:
-   - Windows: `.venv\Scripts\activate`
-   - Unix/macOS: `source .venv/bin/activate`
-4. Install dependencies: `pip install -r requirements.txt`
-5. (Optional) Install the project in editable mode: `pip install -e .`
-
-## Repository Structure
-
-- `src/blazepoze/` – library code (datasets, models, utils)
-- `scripts/` – training and conversion scripts
-- `models/` – pre-trained (`pretrained/`) and exported (`exported/`) models
-
-## Dataset Format
-
-The training pipeline expects a folder of CSV files organised by label:
+## Final Project Structure
 
 ```
-<data_dir>/
-└── <label>/
-    ├── sample_d__landmarks.csv
-    ├── sample_p__landmarks.csv
-    └── ...
+blazepoze-detection/
+├── data/                  # raw CSV training data
+├── saved_models/          # trained `.keras` models
+├── src/
+│   └── blazepoze/
+│       ├── data_processing/
+│       │   └── pose_dataset_pipeline.py
+│       ├── models/
+│       │   └── tcn.py
+│       ├── inference/
+│       │   └── pose_action_classifier.py
+│       └── utils/
+│           ├── augment.py
+│           ├── validation.py
+│           └── logging_utils.py
+├── scripts/
+│   ├── train.py
+│   └── run_inference.py
+└── labels.txt
 ```
 
-Each CSV contains 50 frames with 99 landmark values per frame.
+## Setup and Installation
+
+```bash
+# clone the repository
+$ git clone <repo-url>
+$ cd blazepoze-detection
+
+# create and activate a virtual environment
+$ python -m venv .venv
+$ source .venv/bin/activate
+
+# install dependencies
+$ pip install -r requirements.txt
+```
 
 ## Usage
 
 ### Training
-Edit the paths inside `scripts/train_pipeline.py` and run:
+
+Train a TCN model on your dataset:
 
 ```bash
-python scripts/train_pipeline.py
+python scripts/train.py --data-dir ./data/ --output-dir ./saved_models/
 ```
 
-### Converting to ONNX
-After training a Keras model, export it:
+- `--data-dir` Path containing label subfolders with pose CSV files
+- `--output-dir` Directory where the trained `.keras` model will be saved
+
+### Live Inference
+
+Run the real-time pipeline with an OAK-D camera:
 
 ```bash
-python scripts/convert_to_onnx.py
+python scripts/run_inference.py \
+    --keras_model ./saved_models/pose_classifier_oak.keras \
+    --pd_model depthai_blazepose/models/pose_detection_sh4.blob \
+    --lm_model depthai_blazepose/models/pose_landmark_full_sh4.blob
 ```
 
-To convert the ONNX model to a DepthAI blob use:
+- `--keras_model` Trained TCN model
+- `--pd_model` BlazePose pose detection blob
+- `--lm_model` BlazePose landmark blob
+- `--label_file` Optional text file with class labels
 
-```bash
-python scripts/onnx_to_blob.py path/to/model.onnx
-```
+## Model Architecture
 
-### DepthAI Demo
-Connect an OAK camera and run the demo by providing paths to both the
-gesture classifier and BlazePose blobs:
-
-```bash
-python scripts/run_depthai.py --classifier-blob models/deployed/blazepose.blob \
-                             --pose-blob path/to/blazepose.blob
-```
-
-### Simplified DepthAI Demo
-For a minimal pipeline that only requires the classifier blob you can run:
-
-```bash
-python scripts/run_depthai_simplified.py --classifier-blob models/deployed/blazepose.blob
-```
-
-## Additional Utilities
-
-- `scripts/verify_data.py` – visualise CSV sequences and create a video
-- `src/blazepoze/visualization/pose_visualizer.py` – PCA, t-SNE and time-series plots
+1. **Pose Detector** – BlazePose model running on the OAK-D device.
+2. **Landmark Estimator** – Generates 3D landmarks for each frame on device.
+3. **TCN Classifier** – Temporal Convolutional Network implemented in TensorFlow/Keras. It processes the landmark sequence on the host CPU to classify the current action.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License.
