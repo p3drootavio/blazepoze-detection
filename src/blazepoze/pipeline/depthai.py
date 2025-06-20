@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import blobconverter
 
 import depthai as dai
 import cv2 as cv
@@ -25,7 +26,7 @@ class DepthAIPipeline:
         self.blob_file_path = blob_file_path
         self.blazepose_blob_path = blazepose_blob_path
         self.pipeline = dai.Pipeline()
-
+        
         if not os.path.exists(self.blazepose_blob_path):
             raise FileNotFoundError(
                 f"BlazePose blob not found: {self.blazepose_blob_path}"
@@ -56,9 +57,9 @@ class DepthAIPipeline:
             f"  - Blob File Path        : {self.blob_file_path}\n"
             f"  - BlazePose Blob Path   : {self.blazepose_blob_path}\n"
             f"  - Pipeline Created      : {'Yes' if pipeline_created else 'No'}\n"
-            f"  - RGB Camera           : {'Configured' if rgb_configured else 'Not Configured'}\n"
-            f"  - Resolution           : 1080p\n"
-            f"  - Frame Rate           : 30 FPS\n"
+            f"  - RGB Camera            : {'Configured' if rgb_configured else 'Not Configured'}\n"
+            f"  - Resolution            : 1080p\n"
+            f"  - Frame Rate            : 30 FPS\n"
             f"  - Neural Network Config : {'Yes' if nn_configured else 'No'}\n"
             f"  - NN Input Shape        : {input_shape_str}\n"
             f"  - NN Input Stream       : {'nn_input' if hasattr(self, 'nn_in') else 'Not Configured'}\n"
@@ -70,6 +71,12 @@ class DepthAIPipeline:
         """Connect to the OAK device and start the video stream."""
         self._validate_device_available()
         self._createNeuralNetworkNodes(self.pipeline)
+
+        try:
+            self._describe_blob(self.blob_file_path)
+            self._describe_blob(self.blazepose_blob_path)
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
 
         try:
             with dai.Device(self.pipeline) as device:
@@ -168,7 +175,8 @@ class DepthAIPipeline:
 
         # Set preview size to match BlazePose input
         color.setPreviewSize(256, 256)  # or 224x224 or whatever your model expects
-        color.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+        color.setFp16(True)   # ← 16-bit planar output
+        color.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)  # planar BGR FP-16
 
         return color
 
@@ -201,30 +209,41 @@ class DepthAIPipeline:
 
 
     def _createNeuralNetworkNodes(self, pipeline):
-        # BlazePose NN (stage 1)
+        # --- Stage 1: BlazePose Landmark Detection ---
+
+        # Create an ImageManip node for resizing and frame type conversion.
+        manip = pipeline.create(dai.node.ImageManip)
+        manip.initialConfig.setResize(256, 256)
+        manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
+
+        # Correctly link the camera's preview output to the ImageManip's 'inputImage'.
+        self.colorCam.preview.link(manip.inputImage)
+
+        # Create the BlazePose neural network node.
         self.blazepose_nn = pipeline.create(dai.node.NeuralNetwork)
         self.blazepose_nn.setBlobPath(self.blazepose_blob_path)
-        self.blazepose_nn.setNumInferenceThreads(2)
-        self.blazepose_nn.input.setBlocking(False)
-        self.colorCam.preview.link(self.blazepose_nn.input)
 
-        # Output from BlazePose
+        # Link the ImageManip's output to the neural network's input.
+        manip.out.link(self.blazepose_nn.input)
+
+        # Create an XLinkOut node to get the BlazePose results back to the host.
         self.blazepose_out = pipeline.create(dai.node.XLinkOut)
         self.blazepose_out.setStreamName("blazepose_output")
         self.blazepose_nn.out.link(self.blazepose_out.input)
 
-        # Gesture Classifier NN (stage 2)
+        # --- Stage 2: Gesture Classifier ---
+        # This part takes keypoints processed on the host and sends them back.
+
+        # Create the gesture classifier neural network.
         self.nn = pipeline.create(dai.node.NeuralNetwork)
         self.nn.setBlobPath(self.blob_file_path)
-        self.nn.setNumInferenceThreads(2)
-        self.nn.input.setBlocking(False)
 
-        # XLinkIn for manually feeding keypoints
+        # Create an XLinkIn node to receive keypoint data from the host.
         self.nn_in = pipeline.create(dai.node.XLinkIn)
         self.nn_in.setStreamName("nn_input")
         self.nn_in.out.link(self.nn.input)
 
-        # XLinkOut for gesture output
+        # Create an XLinkOut node to get the final classification result.
         self.nn_out = pipeline.create(dai.node.XLinkOut)
         self.nn_out.setStreamName("nn_output")
         self.nn.out.link(self.nn_out.input)
@@ -233,17 +252,42 @@ class DepthAIPipeline:
     def _prepare_input(self, input_queue):
         if self.blazepose_queue.has():
             result = self.blazepose_queue.get()
-            keypoints = np.array(result.getFirstLayerFp16())  # shape: (4950,) for (1, 3, 10, 165)
+            keypoints = np.array(result.getLayerFp16("Identity"))  # 195 FP16
 
-            # Optional: validate or reshape if needed
-            if keypoints.size != 4950:
-                print("Unexpected BlazePose output size:", keypoints.shape)
+            if keypoints.size != 195:
+                print("Unexpected landmark size:", keypoints.size)
                 return
 
-            nn_data = dai.NNData()
-            nn_data.setLayer("oak_input", keypoints)
-            input_queue.send(nn_data)
-            self.inference_start = time.time()
+            # Expand to the classifier's expected shape (3,10,165)
+            # e.g. replicate over 10 time-steps or push a sliding window:
+            kp165 = keypoints[:165].reshape(1, 3, 1, 165)  # (1,3,1,165)
+            kp_tensor = np.repeat(kp165, 10, axis=2)  # (1,3,10,165)
 
-            # Save for __str__
-            self.fake_input = keypoints.reshape(1, 3, 10, 165)
+            nn_data = dai.NNData()
+            nn_data.setLayer("oak_input", kp_tensor)
+            input_queue.send(nn_data)
+
+
+    def _describe_blob(self, path: str):
+        if not isinstance(path, str) or not path:
+            raise ValueError("Invalid blob path")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Blob file not found: {path}")
+
+        try:
+            net = dai.OpenVINO.Blob(path)
+            print(f"\nBlob: {path}")
+            print(" ▸ OpenVINO version :", net.version)
+            print(" ▸ Compiled for     :", net.numShaves, "SHAVEs,", net.numSlices, "CMX")
+            print(" ▸ Stage count      :", net.stageCount)
+
+            print("\n  Inputs:")
+            for name, ti in net.networkInputs.items():
+                print(f"   • {name:<12} {ti.dims}  {ti.dataType}  order={ti.order}")
+
+            print("\n  Outputs:")
+            for name, ti in net.networkOutputs.items():
+                print(f"   • {name:<12} {ti.dims}  {ti.dataType}  order={ti.order}")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to parse blob file: {e}")

@@ -67,15 +67,16 @@ class DepthAIClassifier:
 
         print("Inputs:")
         for name, info in blob.networkInputs.items():
-            print(f" - Name: '{name}', Type: {info.precision}, Shape: {info.dims}")
+            print(f" - Name: '{name}', Type: {info.dataType}, Shape: {info.dims}")
             # OpenVINO stores dims as NCHW
             if len(info.dims) >= 4:
                 self.input_size = (info.dims[3], info.dims[2])
 
         print("Outputs:")
         for name, info in blob.networkOutputs.items():
-            print(f" - Name: '{name}', Type: {info.precision}, Shape: {info.dims}")
+            print(f" - Name: '{name}', Type: {info.dataType}, Shape: {info.dims}")
             self.output_layer = name
+
 
     def _create_pipeline(self) -> None:
         """Configure DepthAI nodes for the single-stage pipeline."""
@@ -86,7 +87,13 @@ class DepthAIClassifier:
         self.cam = self.pipeline.create(dai.node.ColorCamera)
         self.cam.setBoardSocket(dai.CameraBoardSocket.RGB)
         self.cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        self.cam.setInterleaved(False)
         self.cam.setFps(30)
+
+        # Set preview size to match BlazePose input
+        self.cam.setPreviewSize(256, 256)  # or 224x224 or whatever your model expects
+        self.cam.setFp16(True)  # ← 16-bit planar output
+        self.cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)  # planar BGR FP-16
 
         # High-resolution video stream
         xout_rgb = self.pipeline.createXLinkOut()
@@ -157,4 +164,3 @@ class DepthAIClassifier:
             raise RuntimeError(
                 "No DepthAI device found! Please ensure the camera is connected"
             )
-

@@ -19,8 +19,8 @@ def main(classifier_blob=None, pose_blob=None):
             raise FileNotFoundError(f"BlazePose blob not found at: {pose_blob}")
 
         pipeline = DepthAIPipeline(
-            blob_file_path=classifier_blob,
-            blazepose_blob_path=pose_blob,
+            blob_file_path=classifier_blob,  # stage-2
+            blazepose_blob_path=pose_blob,   # stage-1
         )
         print("Before connecting the device: ", pipeline)
         pipeline.connectDevice()
@@ -33,12 +33,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run DepthAI gesture pipeline")
     parser.add_argument(
         "--classifier-blob",
-        default="models/deployed/blazepose.blob",
+        default="models/deployed/pose_classifier_oak_openvino_2022.1_6shave.blob",
         help="Path to the gesture classifier blob",
     )
     parser.add_argument(
         "--pose-blob",
-        default="models/deployed/blazepose.blob",
+        default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/depthai_blazepose/models/pose_landmark_full_sh4.blob",
         help="Path to the BlazePose blob",
     )
     args = parser.parse_args()

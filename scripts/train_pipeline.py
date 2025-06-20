@@ -15,8 +15,8 @@ from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
 def main():
     parser = argparse.ArgumentParser(description="Train pose classification model")
-    parser.add_argument("--data-dir", required=True, help="Directory with training data")
-    parser.add_argument("--output-dir", default="models", help="Directory to save outputs")
+    parser.add_argument("--data-dir", default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/data", help="Directory with training data")
+    parser.add_argument("--output-dir", default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/models/pretrained", help="Directory to save outputs")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32)
     args = parser.parse_args()
@@ -50,6 +50,9 @@ def main():
     train_dataset = pipeline.get_tf_dataset("train", augment=False)
     val_dataset = pipeline.get_tf_dataset("val")
     test_dataset = pipeline.get_tf_dataset("test")
+
+    # Print Pipeline
+    print(pipeline)
 
     # Ensure datasets are not empty
     if train_dataset is None or val_dataset is None or test_dataset is None:
@@ -126,7 +129,7 @@ def main():
 
     # Save Model
     os.makedirs(os.path.join(DIR_ROOT, "pretrained"), exist_ok=True)
-    model.save(os.path.join(DIR_ROOT, "pretrained", "pose_tcn.keras"))
+    model.save(os.path.join(DIR_ROOT, "pretrained", "pose_tcn_new.keras"))
     pd.DataFrame(history.history).to_csv(os.path.join(DIR_ROOT, "history.csv"), index=False)
 
 
