@@ -1,20 +1,37 @@
 # BlazePoze Action Recognition
 
-BlazePoze is a lightweight pipeline for classifying human actions from real-time 3D pose data streamed by a Luxonis OAK-D camera. The project combines on-device landmark detection with a Temporal Convolutional Network (TCN) running on the host CPU.
+BlazePoze is a streamlined pipeline for recognizing human actions from 3D pose data captured by a Luxonis OAK-D camera. The camera runs BlazePose for landmark extraction while the host CPU executes a Temporal Convolutional Network (TCN) to classify the action.
 
 ## Features
 
-- DepthAI-based BlazePose detector for on-device 3D landmarks
-- TensorFlow/Keras TCN classifier for recognizing actions
-- Data pipeline with optional augmentation utilities
-- Training and live inference scripts for easy experimentation
+- Real-time landmark detection with DepthAI
+- TensorFlow/Keras TCN model for action recognition
+- Dataset pipeline with optional augmentation utilities
+- Scripts for training and live inference
 
-## Final Project Structure
+## Essential vs. Obsolete Files
+
+### Essential
+- `src/blazepoze/pipeline/depthai_simplified_buffer.py` – `PoseActionClassifier` inference pipeline
+- `src/blazepoze/pipeline/pose_dataset.py` – `PoseDatasetPipeline` for data handling
+- `src/blazepoze/pipeline/tnc_model_strong.py` – TCN model definition
+- `src/blazepoze/utils/augment.py`, `validation.py`, `logging_utils.py`
+- `scripts/run_depthai_buffer.py` – live inference script
+- `scripts/train_pipeline_for_oak.py` – training script producing the `.keras` model
+- `models/pretrained/*.keras` – trained models used for inference
+
+### Obsolete
+- `src/blazepoze/pipeline/depthai.py`, `depthai_simplified.py`
+- `src/blazepoze/pipeline/tcn_model_weak.py`, `tcn_ed_model.py`
+- Legacy scripts such as `run_depthai.py`, `run_depthai_simplified.py`, `train_pipeline.py`, `train_pipeline_edtcn.py`
+- ONNX conversion utilities (`convert_to_onnx.py`, `onnx_to_blob.py`, `calculate_flops.py`)
+
+## Refactored Project Layout
 
 ```
 blazepoze-detection/
-├── data/                  # raw CSV training data
-├── saved_models/          # trained `.keras` models
+├── data/                  # raw training CSV files
+├── saved_models/          # final .keras models
 ├── src/
 │   └── blazepoze/
 │       ├── data_processing/
@@ -32,6 +49,11 @@ blazepoze-detection/
 │   └── run_inference.py
 └── labels.txt
 ```
+
+## Code Refinement Suggestions
+
+- Rename `PoseActionClassifier._prepare_input_tensor` variables for clarity (e.g., `landmark_buffer` → `buffer`) and add comments explaining the reshaping logic.
+- In `run_depthai_buffer.py` ensure each argument description clearly states the expected path and add a newline at the end of the file.
 
 ## Setup and Installation
 
@@ -52,18 +74,13 @@ $ pip install -r requirements.txt
 
 ### Training
 
-Train a TCN model on your dataset:
-
 ```bash
 python scripts/train.py --data-dir ./data/ --output-dir ./saved_models/
 ```
-
-- `--data-dir` Path containing label subfolders with pose CSV files
-- `--output-dir` Directory where the trained `.keras` model will be saved
+- `--data-dir` directory with label subfolders containing pose CSV files
+- `--output-dir` directory where the trained model will be saved
 
 ### Live Inference
-
-Run the real-time pipeline with an OAK-D camera:
 
 ```bash
 python scripts/run_inference.py \
@@ -71,18 +88,18 @@ python scripts/run_inference.py \
     --pd_model depthai_blazepose/models/pose_detection_sh4.blob \
     --lm_model depthai_blazepose/models/pose_landmark_full_sh4.blob
 ```
-
-- `--keras_model` Trained TCN model
+- `--keras_model` path to the trained TCN model
 - `--pd_model` BlazePose pose detection blob
 - `--lm_model` BlazePose landmark blob
-- `--label_file` Optional text file with class labels
+- `--label_file` optional text file with class labels
 
 ## Model Architecture
 
-1. **Pose Detector** – BlazePose model running on the OAK-D device.
-2. **Landmark Estimator** – Generates 3D landmarks for each frame on device.
-3. **TCN Classifier** – Temporal Convolutional Network implemented in TensorFlow/Keras. It processes the landmark sequence on the host CPU to classify the current action.
+1. **Pose Detector** – BlazePose running on the OAK-D device
+2. **Landmark Estimator** – produces 3D landmarks on device
+3. **TCN Classifier** – host-side TensorFlow/Keras network that classifies the current action
 
 ## License
 
 This project is licensed under the MIT License.
+
