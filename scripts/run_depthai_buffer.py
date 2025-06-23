@@ -2,6 +2,7 @@ import argparse
 import os
 # The new class name is PoseActionClassifier
 from src.blazepoze.pipeline.depthai_simplified_buffer import PoseActionClassifier
+from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,6 +39,7 @@ def main(args):
         lm_model_path=lm_model,
         labels=labels
     )
+    VisualizationUtils.display_enabled = not args.no_display
     pipeline.run()
 
 
@@ -65,6 +67,11 @@ if __name__ == "__main__":
         "--label_file",
         default="labels.txt",
         help="Optional path to a text file with class labels.",
+    )
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Disable OpenCV image display",
     )
 
     args = parser.parse_args()
