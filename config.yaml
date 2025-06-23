@@ -1,0 +1,14 @@
+# Default configuration for blazepoze-detection scripts
+
+depthai:
+  classifier_blob: "models/deployed/pose_classifier_oak_openvino_2022.1_6shave.blob"
+  pose_blob: "depthai_blazepose/models/pose_landmark_full_sh4.blob"
+  camera_resolution: "1080p"
+  fps: 30
+  confidence_threshold: 0.5
+
+training:
+  data_dir: "data"
+  output_dir: "models/pretrained"
+  epochs: 30
+  batch_size: 32

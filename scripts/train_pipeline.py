@@ -1,6 +1,7 @@
 # Third-party libraries
 import argparse
 import os
+import yaml
 
 import numpy as np
 import pandas as pd
@@ -12,13 +13,35 @@ from tensorflow.keras.callbacks import EarlyStopping
 from src.blazepoze.pipeline.tnc_model_strong import build_tcn as tcn
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
+
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    CONFIG = yaml.safe_load(f)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Train pose classification model")
-    parser.add_argument("--data-dir", default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/data", help="Directory with training data")
-    parser.add_argument("--output-dir", default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/models/pretrained", help="Directory to save outputs")
-    parser.add_argument("--epochs", type=int, default=30)
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument(
+        "--data-dir",
+        default=CONFIG.get("training", {}).get("data_dir", "data"),
+        help="Directory with training data",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=CONFIG.get("training", {}).get("output_dir", "models/pretrained"),
+        help="Directory to save outputs",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=CONFIG.get("training", {}).get("epochs", 30),
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=CONFIG.get("training", {}).get("batch_size", 32),
+    )
     args = parser.parse_args()
 
     SEQUENCE_LENGTH = 50

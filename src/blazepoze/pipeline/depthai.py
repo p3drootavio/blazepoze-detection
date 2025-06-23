@@ -16,7 +16,14 @@ class DepthAIPipeline:
     frames with a color camera. The setup is easily extendable for additional
     cameras or neural network nodes in the future.
     """
-    def __init__(self, blob_file_path, blazepose_blob_path="blazepose.blob"):
+    def __init__(
+        self,
+        blob_file_path,
+        blazepose_blob_path="blazepose.blob",
+        resolution: str = "1080p",
+        fps: int = 30,
+        confidence_threshold: float = 0.5,
+    ):
         """Initialize the DepthAI pipeline with a color camera configuration.
 
         Sets up the basic pipeline structure including:
@@ -25,6 +32,9 @@ class DepthAIPipeline:
         """
         self.blob_file_path = blob_file_path
         self.blazepose_blob_path = blazepose_blob_path
+        self.resolution = resolution
+        self.fps = fps
+        self.confidence_threshold = confidence_threshold
         self.pipeline = dai.Pipeline()
         
         if not os.path.exists(self.blazepose_blob_path):
@@ -58,8 +68,9 @@ class DepthAIPipeline:
             f"  - BlazePose Blob Path   : {self.blazepose_blob_path}\n"
             f"  - Pipeline Created      : {'Yes' if pipeline_created else 'No'}\n"
             f"  - RGB Camera            : {'Configured' if rgb_configured else 'Not Configured'}\n"
-            f"  - Resolution            : 1080p\n"
-            f"  - Frame Rate            : 30 FPS\n"
+            f"  - Resolution            : {self.resolution}\n"
+            f"  - Frame Rate            : {self.fps} FPS\n"
+            f"  - Confidence Threshold  : {self.confidence_threshold}\n"
             f"  - Neural Network Config : {'Yes' if nn_configured else 'No'}\n"
             f"  - NN Input Shape        : {input_shape_str}\n"
             f"  - NN Input Stream       : {'nn_input' if hasattr(self, 'nn_in') else 'Not Configured'}\n"
@@ -123,13 +134,17 @@ class DepthAIPipeline:
         if self.nn_output_queue.has():
             result = self.nn_output_queue.get()
             prediction = np.array(result.getFirstLayerFp16())
-            label = int(np.argmax(prediction))
-            logger.info("Prediction: %s", label)
+            label_idx = int(np.argmax(prediction))
+            confidence = float(np.max(prediction))
+            logger.info("Prediction: %s (%.2f)", label_idx, confidence)
+
+            if confidence < self.confidence_threshold:
+                return
 
             if hasattr(self, "frame"):
                 cv.putText(
                     self.frame,
-                    str(label),
+                    str(label_idx),
                     (10, 30),
                     cv.FONT_HERSHEY_SIMPLEX,
                     1.0,
@@ -169,9 +184,15 @@ class DepthAIPipeline:
         """
         color = pipeline.create(dai.node.ColorCamera)
         color.setBoardSocket(dai.CameraBoardSocket.RGB)
-        color.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+
+        res_map = {
+            "1080p": dai.ColorCameraProperties.SensorResolution.THE_1080_P,
+            "720p": dai.ColorCameraProperties.SensorResolution.THE_720_P,
+            "4k": dai.ColorCameraProperties.SensorResolution.THE_4_K,
+        }
+        color.setResolution(res_map.get(self.resolution.lower(), res_map["1080p"]))
         color.setInterleaved(False)
-        color.setFps(30)
+        color.setFps(self.fps)
 
         # Set preview size to match BlazePose input
         color.setPreviewSize(256, 256)  # or 224x224 or whatever your model expects
