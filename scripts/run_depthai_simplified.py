@@ -1,6 +1,7 @@
 import argparse
 import os
 from src.blazepoze.pipeline.depthai_simplified import DepthAIClassifier
+from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -15,7 +16,8 @@ def read_labels(label_file):
         return [line.strip() for line in f if line.strip()]
 
 
-def main(classifier_blob, label_file=None):
+def main(classifier_blob, label_file=None, display=True):
+    VisualizationUtils.display_enabled = display
     classifier_blob = os.path.join(PROJECT_ROOT, classifier_blob)
     if not os.path.exists(classifier_blob):
         raise FileNotFoundError(f"Classifier blob not found at: {classifier_blob}")
@@ -38,5 +40,10 @@ if __name__ == "__main__":
         default=None,
         help="Optional path to a text file with class labels",
     )
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Disable OpenCV image display",
+    )
     args = parser.parse_args()
-    main(args.classifier_blob, args.label_file)
+    main(args.classifier_blob, args.label_file, not args.no_display)

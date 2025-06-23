@@ -2,6 +2,7 @@ import argparse
 import os
 import yaml
 from src.blazepoze.pipeline.depthai import DepthAIPipeline
+from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -9,7 +10,6 @@ CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = yaml.safe_load(f)
-
 
 def main(classifier_blob=None, pose_blob=None, resolution="1080p", fps=30, confidence_threshold=0.5):
     try:

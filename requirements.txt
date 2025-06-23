@@ -21,3 +21,4 @@ tornado
 werkzeug
 wheel
 wrapt
+depthai
