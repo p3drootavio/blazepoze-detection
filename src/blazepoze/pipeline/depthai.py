@@ -7,6 +7,9 @@ import depthai as dai
 import cv2 as cv
 import numpy as np
 
+from .pipeline_manager import PipelineManager
+from src.blazepoze.visualization.visualization_utils import VisualizationUtils
+
 logger = logging.getLogger(__name__)
 
 class DepthAIPipeline:
@@ -26,6 +29,9 @@ class DepthAIPipeline:
         self.blob_file_path = blob_file_path
         self.blazepose_blob_path = blazepose_blob_path
         self.pipeline = dai.Pipeline()
+
+        # Helper class to handle device lifecycle
+        self.manager = PipelineManager(self.pipeline)
         
         if not os.path.exists(self.blazepose_blob_path):
             raise FileNotFoundError(
@@ -69,7 +75,7 @@ class DepthAIPipeline:
 
     def connectDevice(self):
         """Connect to the OAK device and start the video stream."""
-        self._validate_device_available()
+        self.manager.validate_device_available()
         self._createNeuralNetworkNodes(self.pipeline)
 
         try:
@@ -79,23 +85,14 @@ class DepthAIPipeline:
             print(f"An error occurred: {str(e)}")
 
         try:
-            with dai.Device(self.pipeline) as device:
-                self._initialize_queues(device)
-                self._start_streaming_loop()
-
+            self.manager.run(self._initialize_queues, self._start_streaming_loop)
         except Exception as e:
             print(f"An error occurred: {str(e)}")
-        finally:
-            cv.destroyAllWindows()
 
 
     def _validate_device_available(self):
-        available_devices = dai.Device.getAllAvailableDevices()
-        if not available_devices:
-            raise RuntimeError("No DepthAI device found! Please ensure that:\n"
-                               "1. The OAK camera is properly connected\n"
-                               "2. You have necessary permissions to access the device\n"
-                               "3. The device is not being used by another application")
+        """Backward compatible validation using :class:`PipelineManager`."""
+        PipelineManager.validate_device_available()
 
 
     def _initialize_queues(self, device):
@@ -114,9 +111,8 @@ class DepthAIPipeline:
             self._prepare_input(self.nn_input_queue)
             self._handle_nn_output()
 
-            cv.imshow("window", self.frame)
-
-            self._checkKeyboardInput()
+            if not VisualizationUtils.show_image("window", self.frame):
+                break
 
 
     def _handle_nn_output(self):
@@ -127,15 +123,7 @@ class DepthAIPipeline:
             logger.info("Prediction: %s", label)
 
             if hasattr(self, "frame"):
-                cv.putText(
-                    self.frame,
-                    str(label),
-                    (10, 30),
-                    cv.FONT_HERSHEY_SIMPLEX,
-                    1.0,
-                    (0, 255, 0),
-                    2,
-                )
+                VisualizationUtils.overlay_text(self.frame, str(label))
 
             if hasattr(self, "inference_start"):
                 duration = time.time() - self.inference_start

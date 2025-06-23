@@ -1,12 +1,14 @@
 import argparse
 import os
 from src.blazepoze.pipeline.depthai import DepthAIPipeline
+from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def main(classifier_blob=None, pose_blob=None):
+def main(classifier_blob=None, pose_blob=None, display=True):
+    VisualizationUtils.display_enabled = display
     try:
         # Resolve to full paths relative to project root
         classifier_blob = os.path.join(PROJECT_ROOT, classifier_blob)
@@ -41,5 +43,10 @@ if __name__ == "__main__":
         default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/depthai_blazepose/models/pose_landmark_full_sh4.blob",
         help="Path to the BlazePose blob",
     )
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Disable OpenCV image display",
+    )
     args = parser.parse_args()
-    main(args.classifier_blob, args.pose_blob)
+    main(args.classifier_blob, args.pose_blob, not args.no_display)
