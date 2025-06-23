@@ -20,6 +20,8 @@ BlazePoze provides a full workflow for preparing 3D pose datasets, training Temp
 4. Install dependencies: `pip install -r requirements.txt`
 5. (Optional) Install the project in editable mode: `pip install -e .`
 
+If you're using DepthAI on Linux, install `libusb-1.0` and apply the OAK-D udev rules. OpenCV video modules may also require `libgtk-3-dev` or another GUI backend depending on your system.
+
 ## Repository Structure
 
 - `src/blazepoze/` – library code (datasets, models, utils)
