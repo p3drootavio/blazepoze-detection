@@ -10,7 +10,7 @@ from sklearn.metrics import confusion_matrix, classification_report, ConfusionMa
 from tensorflow.keras.callbacks import EarlyStopping
 
 # local modules
-from src.blazepoze.pipeline.tnc_model_strong import build_tcn as tcn
+from src.blazepoze.pipeline.tnc_model import build_tcn as tcn
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,7 +52,7 @@ def main():
 
     # Pipeline Initialization
     augmentation_config = {
-        "noise": [True, 0.3],
+        "noise": [False, 0.3],
         "scale": [False, 1.0],
         "shift": [False, 0.0]
     }
@@ -75,7 +75,7 @@ def main():
     test_dataset = pipeline.get_tf_dataset("test")
 
     # Print Pipeline
-    print(pipeline)
+    #print(pipeline)
 
     # Ensure datasets are not empty
     if train_dataset is None or val_dataset is None or test_dataset is None:
@@ -128,6 +128,7 @@ def main():
     print(f"Predicted labels: {predicted_labels}", end="\n\n")
     print(f"True labels: {true_labels}", end="\n\n")
 
+    '''
     # Classification Report
     report = classification_report(y_true, predicted_classes, target_names=class_names, output_dict=True)
     print(report)
@@ -149,6 +150,7 @@ def main():
     plt.title("Confusion Matrix")
     plt.tight_layout()
     plt.show()
+    '''
 
     # Save Model
     os.makedirs(os.path.join(DIR_ROOT, "pretrained"), exist_ok=True)

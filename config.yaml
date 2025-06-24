@@ -8,7 +8,7 @@ depthai:
   confidence_threshold: 0.5
 
 training:
-  data_dir: "data"
+  data_dir: "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/data"
   output_dir: "models/pretrained"
   epochs: 30
   batch_size: 32

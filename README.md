@@ -77,7 +77,7 @@ python scripts/run_depthai.py --classifier-blob models/deployed/blazepose.blob \
 For a minimal pipeline that only requires the classifier blob you can run:
 
 ```bash
-python scripts/run_depthai_simplified.py --classifier-blob models/deployed/blazepose.blob
+python scripts/run_depthai_buffer.py --classifier-blob models/deployed/blazepose.blob
 ```
 
 ## Additional Utilities

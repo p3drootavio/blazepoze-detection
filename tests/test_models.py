@@ -1,5 +1,5 @@
 import tensorflow as tf
-from src.blazepoze.pipeline.tnc_model_strong import build_tcn
+from src.blazepoze.pipeline.tnc_model import build_tcn
 from src.blazepoze.pipeline.tcn_model_weak import TemporalConvNet
 
 

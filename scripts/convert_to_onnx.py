@@ -3,7 +3,7 @@ from __future__ import annotations
 import tensorflow as tf
 import tf2onnx
 
-from src.blazepoze.pipeline.tnc_model_strong import TemporalBlock
+from src.blazepoze.pipeline.tnc_model import TemporalBlock
 
 class ModelConverter:
     """Convert Keras models to ONNX using tf2onnx.
@@ -64,8 +64,8 @@ def main() -> None:
     ROOT_DIR = "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/models"
     converter = ModelConverter()
     converter.convert(
-        model_path=f"{ROOT_DIR}/pretrained/pose_tcn.keras",
-        output_path=f"{ROOT_DIR}/exported/pose_tcn.onnx",
+        model_path=f"{ROOT_DIR}/pretrained/pose_tcn_new.keras",
+        output_path=f"{ROOT_DIR}/exported/pose_tcn_new.onnx",
     )
 
 

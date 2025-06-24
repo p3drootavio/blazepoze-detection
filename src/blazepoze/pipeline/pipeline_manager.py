@@ -25,7 +25,10 @@ class PipelineManager:
 
         if not dai.Device.getAllAvailableDevices():
             raise RuntimeError(
-                "No DepthAI device found! Please ensure that the camera is connected"
+                "No DepthAI device found! Please ensure that:\n"
+                "1. The OAK camera is properly connected\n"
+                "2. You have necessary permissions to access the device\n"
+                "3. The device is not being used by another application"
             )
 
     def run(

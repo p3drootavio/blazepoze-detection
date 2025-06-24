@@ -14,11 +14,12 @@ import depthai as dai
 import tensorflow as tf
 
 # Import the custom layer definition so Keras knows what a "TemporalBlock" is
-from src.blazepoze.pipeline.tnc_model_strong import TemporalBlock
+from src.blazepoze.pipeline.tnc_model import TemporalBlock
 
 from depthai_blazepose.BlazeposeDepthai import BlazeposeDepthai
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class PoseActionClassifier:
     """
@@ -69,11 +70,11 @@ class PoseActionClassifier:
 
         # 2. Reshape to the model's required "fake" input shape (3, 10, 165)
         #    The total number of elements (4950) remains the same.
-        reshaped_array = landmark_array.reshape(3, 10, 165)
+        #reshaped_array = landmark_array.reshape(3, 10, 165)
 
         # 3. Add the batch dimension for a final shape of (1, 3, 10, 165)
         #    This is what the model's predict() function expects.
-        return np.expand_dims(reshaped_array, axis=0)
+        return np.expand_dims(landmark_array, axis=0)
 
 
     def run(self) -> None:
@@ -81,13 +82,13 @@ class PoseActionClassifier:
         Starts the pipeline and runs the main loop.
         """
         # We no longer need to validate the device here, as BlazePose does it internally
-        # self._validate_device_available() # <-- REMOVE OR COMMENT OUT
+        # self._validate_device_available() # <-- REMOqVE OR COMMENT OUT
 
         # We no longer manage a device or pipeline here
         # with dai.Device(self.pipeline) as device: # <-- REMOVE
 
         current_label = "Waiting for buffer..."
-        label_color = (0, 0, 255)
+        label_color = (0, 0, 0)
 
         while True:
             frame, body = self.tracker.next_frame()
@@ -96,6 +97,7 @@ class PoseActionClassifier:
 
             if body:
                 landmarks = body.landmarks_world.flatten()
+                logging.info(f"Landmark shape: {landmarks.shape}")
                 self.landmark_buffer.append(landmarks)
 
                 if len(self.landmark_buffer) == self.landmark_buffer.maxlen:
@@ -110,7 +112,7 @@ class PoseActionClassifier:
 
                     label = self.labels[label_idx] if label_idx < len(self.labels) else str(label_idx)
                     current_label = f"{label} ({confidence:.2f})"
-                    label_color = (0, 255, 0)
+                    label_color = (0, 0, 0)
 
             else: # No body detected
                 if len(self.landmark_buffer) < self.landmark_buffer.maxlen:

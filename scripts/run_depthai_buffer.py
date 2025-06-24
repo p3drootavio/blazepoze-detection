@@ -1,7 +1,7 @@
 import argparse
 import os
 # The new class name is PoseActionClassifier
-from src.blazepoze.pipeline.depthai_simplified_buffer import PoseActionClassifier
+from src.blazepoze.pipeline.depthai_buffer import PoseActionClassifier
 from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Change the first argument to point to your .keras file
     parser.add_argument(
         "--keras_model",
-        default="models/pretrained/pose_classifier_oak.keras",
+        default="models/pretrained/pose_tcn_new.keras",
         help="Path to the TCN classifier .keras model.",
     )
     parser.add_argument(

@@ -12,7 +12,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.optimizers import Adam
 
 # local modules
-from src.blazepoze.pipeline.tcn_ed_model import build_ed_tcn as tcn
+from src.blazepoze.pipeline.tcn_model_ed import build_ed_tcn as tcn
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
 

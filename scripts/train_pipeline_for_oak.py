@@ -3,20 +3,20 @@ import argparse
 import os
 
 # local modules
-from src.blazepoze.pipeline.tnc_model_strong import build_tcn_for_oak as tcnoak
+from src.blazepoze.pipeline.tnc_model import build_tcn_for_oak as tcnoak
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
+from tensorflow.keras.callbacks import EarlyStopping
 
 
 def main():
     parser = argparse.ArgumentParser(description="Train OAK-ready model")
-    parser.add_argument("--data-dir", required=True, help="Dataset directory")
+    parser.add_argument("--data-dir", default="/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/data", help="Dataset directory")
     parser.add_argument("--output-dir", default="models", help="Directory for outputs")
     args = parser.parse_args()
 
     SEQUENCE_LENGTH = 50
     LANDMARKS_DIM = 99
     BATCH_SIZE = 32
-    EPOCHS = 30
     DIR_ROOT = args.output_dir
 
     # Pipeline Initialization
@@ -62,6 +62,19 @@ def main():
         num_blocks=4,
         base_rate=0.2,
         output_units=pipeline.class_names_encoded
+    )
+
+    model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    model.summary()
+
+    # Train and Test Model
+    early_stopping = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
+
+    model.fit(
+        train_dataset,
+        validation_data=val_dataset,
+        epochs=30,
+        callbacks=[early_stopping]
     )
 
     # Save Model
