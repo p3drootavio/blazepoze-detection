@@ -87,4 +87,4 @@ python scripts/run_depthai_buffer.py --classifier-blob models/deployed/blazepose
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE.txt) for details.

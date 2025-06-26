@@ -5,6 +5,7 @@ Modified DepthAI pipeline for Pose-based Action Classification.
 from __future__ import annotations
 import logging
 import os
+import time
 from typing import Iterable, List, Optional
 from collections import deque
 
@@ -104,15 +105,23 @@ class PoseActionClassifier:
                     # Buffer is full, prepare for host inference
                     input_tensor = self._prepare_input_tensor()
 
-                    # --- Run TCN inference on the host CPU ---
+                    # --- Run TCN inference on the host CPU and measure time ---
+                    start_time = time.perf_counter()
                     predictions = self.tcn_model.predict(input_tensor)[0]
+                    duration_ms = (time.perf_counter() - start_time) * 1000
+                    logger.info(f"TCN inference time: {duration_ms:.2f} ms")
 
+                    # --- Configure the label and the confidence level ---
                     label_idx = np.argmax(predictions)
                     confidence = np.max(predictions)
 
-                    label = self.labels[label_idx] if label_idx < len(self.labels) else str(label_idx)
-                    current_label = f"{label} ({confidence:.2f})"
-                    label_color = (0, 0, 0)
+                    if confidence > 0.7:
+                        label = self.labels[label_idx] if label_idx < len(self.labels) else str(label_idx)
+                        current_label = f"{label} ({confidence:.2f})"
+                        label_color = (0, 0, 0)
+                    else:
+                        current_label = f"No pose detected."
+                        label_color = (0, 0, 0)
 
             else: # No body detected
                 if len(self.landmark_buffer) < self.landmark_buffer.maxlen:

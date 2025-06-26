@@ -23,7 +23,6 @@ def main(args):
     keras_model = os.path.join(PROJECT_ROOT, args.keras_model)
     pd_model = os.path.join(PROJECT_ROOT, args.pd_model)
     lm_model = os.path.join(PROJECT_ROOT, args.lm_model)
-
     # Check if all model files exist
     # Make sure to check the keras_model path
     for model_path in [keras_model, pd_model, lm_model]:
