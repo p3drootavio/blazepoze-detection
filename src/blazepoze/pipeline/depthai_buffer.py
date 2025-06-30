@@ -115,7 +115,7 @@ class PoseActionClassifier:
                     label_idx = np.argmax(predictions)
                     confidence = np.max(predictions)
 
-                    if confidence > 0.7:
+                    if confidence > 0.95:
                         label = self.labels[label_idx] if label_idx < len(self.labels) else str(label_idx)
                         current_label = f"{label} ({confidence:.2f})"
                         label_color = (0, 0, 0)
