@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import tensorflow as tf
 import tf2onnx
+from pathlib import Path
 
 from src.blazepoze.pipeline.tnc_model import TemporalBlock
 
@@ -60,13 +62,47 @@ class ModelConverter:
         )
 
 
+def build_arg_parser() -> argparse.ArgumentParser:
+    prj_root = Path(__file__).resolve().parents[1]  # “…/HIVE”
+    default_model = prj_root / "models" / "pretrained" / "pose_tcn.keras"
+    default_out   = prj_root / "models" / "converted"  / "pose_tcn.onnx"
+
+    p = argparse.ArgumentParser(description="Convert a Keras model to ONNX")
+    p.add_argument(
+        "--model-path",
+        type=Path,
+        default=default_model,
+        help=f"Path to .keras model (default: {default_model})",
+    )
+    p.add_argument(
+        "--output-path",
+        type=Path,
+        default=default_out,
+        help=f"Destination .onnx file (default: {default_out})",
+    )
+    p.add_argument(
+        "--opset",
+        type=int,
+        default=13,
+        help="ONNX opset version (default: 13)",
+    )
+    return p
+
+
 def main() -> None:
-    ROOT_DIR = "/Users/pedrootavionascimentocamposdeoliveira/PycharmProjects/hiveLabResearch/models"
+    args = build_arg_parser().parse_args()
+
+    print(f"[INFO] project root    : {Path(__file__).resolve().parents[1]}")
+    print(f"[INFO] model_path      : {args.model_path}")
+    print(f"[INFO] output_path     : {args.output_path}")
+
     converter = ModelConverter()
     converter.convert(
-        model_path=f"{ROOT_DIR}/pretrained/pose_tcn_new.keras",
-        output_path=f"{ROOT_DIR}/exported/pose_tcn_new.onnx",
+        model_path=args.model_path,
+        output_path=args.output_path,
+        opset=args.opset,
     )
+    print("[SUCCESS] Conversion completed.")
 
 
 if __name__ == "__main__":
