@@ -1,6 +1,8 @@
 # Third-party libraries
 import argparse
 import os
+from pathlib import Path
+
 import yaml
 
 import numpy as np
@@ -13,7 +15,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from src.blazepoze.pipeline.tnc_model import build_tcn as tcn
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -52,13 +54,28 @@ def main():
 
     # Pipeline Initialization
     augmentation_config = {
-        "noise": [False, 0.3],
-        "scale": [False, 1.0],
-        "shift": [False, 0.0]
+        "noise": [True, 0.7],
+        "scale": [True, 0.3],
+        "shift": [True, 0.2]
     }
 
+    # Resolve data_dir relative to the project root **once**
+    data_dir = Path(args.data_dir)
+
+    print(f"PROJECT_ROOT = {PROJECT_ROOT}")
+    print(f"Resolved data_dir = {data_dir}")
+
+    if not data_dir.is_absolute():
+        data_dir = PROJECT_ROOT / data_dir  # <── key line
+
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Data directory not found: {data_dir}")
+
+    if not any(data_dir.iterdir()):
+        raise ValueError(f"Data directory is empty: {data_dir}")
+
     pipeline = PoseDatasetPipeline(
-        data_dir=args.data_dir,
+        data_dir=str(data_dir),
         sequence_length=SEQUENCE_LENGTH,
         landmarks_dim=LANDMARKS_DIM,
         batch_size=BATCH_SIZE,
@@ -66,20 +83,27 @@ def main():
     )
 
     # Load and Split Data
-    pipeline.load_data()
-    pipeline.split_data()
+    try:
+        pipeline.load_data()
+        pipeline.split_data()
+    except Exception as e:
+        raise ValueError(f"Failed to load or split data: {str(e)}")
 
     # Create Datasets
-    train_dataset = pipeline.get_tf_dataset("train", augment=False)
+    train_dataset = pipeline.get_tf_dataset("train", augment=True)
     val_dataset = pipeline.get_tf_dataset("val")
     test_dataset = pipeline.get_tf_dataset("test")
 
-    # Print Pipeline
-    #print(pipeline)
-
     # Ensure datasets are not empty
-    if train_dataset is None or val_dataset is None or test_dataset is None:
-        raise ValueError("One or more datasets are empty")
+    datasets = {
+        "training": train_dataset,
+        "validation": val_dataset,
+        "test": test_dataset
+    }
+
+    empty_datasets = [name for name, ds in datasets.items() if ds is None]
+    if empty_datasets:
+        raise ValueError(f"The following datasets are empty: {', '.join(empty_datasets)}")
 
     # TCN Model Configuration
     input_shape = (SEQUENCE_LENGTH, LANDMARKS_DIM)
@@ -128,7 +152,7 @@ def main():
     print(f"Predicted labels: {predicted_labels}", end="\n\n")
     print(f"True labels: {true_labels}", end="\n\n")
 
-    '''
+
     # Classification Report
     report = classification_report(y_true, predicted_classes, target_names=class_names, output_dict=True)
     print(report)
@@ -150,11 +174,10 @@ def main():
     plt.title("Confusion Matrix")
     plt.tight_layout()
     plt.show()
-    '''
 
     # Save Model
     os.makedirs(os.path.join(DIR_ROOT, "pretrained"), exist_ok=True)
-    model.save(os.path.join(DIR_ROOT, "pretrained", "pose_tcn_new.keras"))
+    model.save(os.path.join(DIR_ROOT, "pretrained", "pose_tcn_augmented.keras"))
     pd.DataFrame(history.history).to_csv(os.path.join(DIR_ROOT, "history.csv"), index=False)
 
 
