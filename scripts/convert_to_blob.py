@@ -1,3 +1,5 @@
+# TODO: figure out how to solve the input size compatibility
+
 import blobconverter
 from pathlib import Path
 
@@ -16,7 +18,7 @@ try:
         bin=str(bin_path),
         data_type="FP16",
         shaves=6,
-        version="2022.0"
+        version="2022.0",
     )
     print(f"Blob saved successfully to: {blob_path}")
 
