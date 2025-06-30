@@ -1,3 +1,4 @@
+depthai
 ipython
 jinja2
 jupyter
@@ -21,4 +22,3 @@ tornado
 werkzeug
 wheel
 wrapt
-depthai
