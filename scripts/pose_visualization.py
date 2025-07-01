@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import time
-from typing import Iterable, List, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,10 +34,11 @@ class PoseActionVisualizer(PoseActionClassifier):
 
     WINDOW_NAME: str = "Pose Action Recognition"
 
-    def __init__(self, *args, **kwargs) -> None:  # noqa: D401 – simple init
+
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._start_time: float | None = None
-        self.predictions: List[Prediction] = []
+        self.predictions: List[Prediction] = [] # [Tuple(float, int, float), ...]
 
 
     def run_and_collect(self, *, threshold: float = 0.9, max_frames: int | None = None) -> List[Prediction]:
@@ -70,7 +71,7 @@ class PoseActionVisualizer(PoseActionClassifier):
                 landmarks = body.landmarks_world.flatten()
                 self.landmark_buffer.append(landmarks)
 
-                # Only predict once the buffer is *full*
+                # Only predict once the buffer is full
                 if len(self.landmark_buffer) == self.landmark_buffer.maxlen:
                     input_tensor = self._prepare_input_tensor()
                     scores = self.tcn_model.predict(input_tensor)[0]

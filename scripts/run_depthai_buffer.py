@@ -1,11 +1,11 @@
 import argparse
 import os
+
 # The new class name is PoseActionClassifier
 from src.blazepoze.pipeline.depthai_buffer import PoseActionClassifier
 from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 def read_labels(label_file: str | None) -> list[str]:
     """Read class labels from ``label_file`` relative to project root."""
