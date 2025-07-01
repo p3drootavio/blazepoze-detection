@@ -7,7 +7,8 @@ from src.blazepoze.visualization.visualization_utils import VisualizationUtils
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def read_labels(label_file):
+def read_labels(label_file: str | None) -> list[str]:
+    """Read class labels from ``label_file`` relative to project root."""
     if not label_file:
         return []
     label_path = os.path.join(PROJECT_ROOT, label_file)
