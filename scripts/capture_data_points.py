@@ -119,8 +119,59 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return p
 
 
-def visualize_points():
-    pass
+def visualize_points(csv_file: str, show: bool = True) -> None:
+    """Plot a 2D representation of captured landmarks.
+
+    Parameters
+    ----------
+    csv_file : str
+        Path to a CSV file created by :func:`DataPointCapturer.save_capture`.
+        The file must contain ``(n_frames, 99)`` values with no header.
+    show : bool, optional
+        Whether to display the matplotlib window, by default ``True``.
+
+    This helper loads the CSV, reduces the 99-dimensional landmark vectors to
+    two dimensions using both PCA and t-SNE and plots the resulting points side
+    by side.
+    """
+
+    import matplotlib.pyplot as plt
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import TSNE
+
+    data = pd.read_csv(csv_file, header=None).to_numpy(dtype=float)
+
+    if data.ndim != 2 or data.shape[1] != DataPointCapturer.LANDMARK_VECTOR_LEN:
+        raise ValueError(
+            f"Expected array of shape (n_frames, {DataPointCapturer.LANDMARK_VECTOR_LEN}), "
+            f"got {data.shape}"
+        )
+
+    # Reduce dimensionality with PCA and t-SNE
+    pca = PCA(n_components=2)
+    data_pca = pca.fit_transform(data)
+
+    tsne = TSNE(n_components=2, random_state=0)
+    data_tsne = tsne.fit_transform(data)
+
+    plt.style.use("dark_background")
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+    ax1.scatter(data_pca[:, 0], data_pca[:, 1], c=range(len(data)), cmap="viridis")
+    ax1.set_title("PCA")
+    ax1.set_xlabel("Component 1")
+    ax1.set_ylabel("Component 2")
+
+    ax2.scatter(data_tsne[:, 0], data_tsne[:, 1], c=range(len(data)), cmap="viridis")
+    ax2.set_title("t-SNE")
+    ax2.set_xlabel("Component 1")
+    ax2.set_ylabel("Component 2")
+
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    plt.close(fig)
 
 
 
