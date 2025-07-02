@@ -1,51 +1,39 @@
-"""capture_data_points.py
-=========================
-Capture **55 consecutive frames** of 3‑D pose landmarks (33 keypoints × 3
-coordinates = 99 values) at ~10 FPS (≈ 5.5 s) and save them to a CSV file with
-shape *(55 rows × 99 cols)* – the exact input format expected by your Temporal
-Convolutional Network.
+"""
+Capture 55 consecutive frames of 3D pose landmarks (33 keypoints × 3 coordinates=99 values) at ~FPS (≈5.5s)
+Save them to a CSV file with shape (55 rows × 99 cols)
 
-Usage (example) ───────────────────────────────────────────────────────────────
-$ python capture_data_points.py \
-        --pd_model depthai_blazepose/models/pose_detection_sh4.blob \
-        --lm_model depthai_blazepose/models/pose_landmark_full_sh4.blob \
-        --output_dir data/captures
-
-This will create something like *data/captures/capture_20250701_104212.csv*.
-
-Key points
-──────────
-* **No TCN involved** – we only collect raw landmarks.
-* **Robust timing** – frames are taken at 10 FPS; missed detections are
-  skipped so the total wall‑time may be slightly longer than 5.5 s.
-* **Self‑contained** – the class can be imported and reused programmatically.
+Usage (example) ───────────────────────────────────────────────────────────────────────────────────────────
+source .venv/bin/activate
+export PYTHONPATH="$PYTHONPATH:/Users/username/project/path"
+python scripts/capture_data_points.py \
+  --pd_model depthai_blazepose/models/pose_detection_sh4.blob \
+  --lm_model depthai_blazepose/models/pose_landmark_full_sh4.blob \
+  --output_dir output
 """
 
 from __future__ import annotations
 
 import argparse
+import cv2
 import datetime as _dt
 import logging
+import numpy as np
+import pandas as pd
 from collections import deque
 from pathlib import Path
 from typing import Deque
 
-import cv2
-import numpy as np
-import pandas as pd
 from depthai_blazepose.BlazeposeDepthai import BlazeposeDepthai
 
-# ---------------------------------------------------------------------------
 # Logging setup
-# ---------------------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
 class DataPointCapturer:
-    """Capture one *(buffer_size, 99)* landmark tensor and dump it to CSV."""
+    """Capture one (buffer_size, 99) landmark tensor and dump it to CSV."""
 
-    #: Expected size of one flattened landmark vector (33 keypoints × 3 coords)
+    #: Expected size of one flattened landmark vector (33keypoints × 3 coords)
     LANDMARK_VECTOR_LEN: int = 99
 
     def __init__(self, *, pd_model_path: str, lm_model_path: str, output_dir: str, buffer_size: int = 55, fps: int = 10, smoothing: bool = True,) -> None:
@@ -54,9 +42,7 @@ class DataPointCapturer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # ------------------------------------------------------------------
         # Initialise BlazePose tracker (runs directly on the OAK‑D device)
-        # ------------------------------------------------------------------
         self.tracker = BlazeposeDepthai(
             pd_model=pd_model_path,
             lm_model=lm_model_path,
@@ -71,9 +57,9 @@ class DataPointCapturer:
 
 
     def capture_once(self) -> np.ndarray:
-        """Grab *buffer_size* landmark frames and return as an array."""
+        """Grab buffer_size landmark frames and return as an array."""
         logger.info(
-            "Capturing %d frames (expected duration ≈ %.1f s)…",
+            "Capturing %d frames (expected duration ≈ %.1fs)…",
             self.buffer_size,
             self.buffer_size / self.fps,
         )
@@ -131,6 +117,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--no_smoothing", action="store_true", help="Disable landmark smoothing filter")
     p.add_argument("--file_name", default=None, help="Optional custom CSV base name (no extension)")
     return p
+
+
+def visualize_points():
+    pass
+
 
 
 def _main() -> None:
