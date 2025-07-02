@@ -16,14 +16,31 @@ from typing import List, Sequence, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from run_depthai_buffer import PROJECT_ROOT, read_labels  # shared helpers
-from src.blazepoze.pipeline.depthai_buffer import PoseActionClassifier
-from src.blazepoze.visualization.visualization_utils import VisualizationUtils
+# Import helpers without pulling in heavy dependencies from run_depthai_buffer
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def read_labels(label_file: str | None) -> list[str]:
+    """Read class labels from ``label_file`` relative to project root."""
+    if not label_file:
+        return []
+    label_path = os.path.join(PROJECT_ROOT, label_file)
+    if not os.path.exists(label_path):
+        raise FileNotFoundError(f"Label file not found at: {label_path}")
+    with open(label_path, "r", encoding="utf-8") as f:
+        return [line.strip() for line in f if line.strip()]
+
+try:  # Optional heavy imports – may not be available during unit tests
+    from src.blazepoze.pipeline.depthai_buffer import PoseActionClassifier
+    from src.blazepoze.visualization.visualization_utils import VisualizationUtils
+except Exception:  # pragma: no cover - handled in simple test environment
+    PoseActionClassifier = None  # type: ignore
+    VisualizationUtils = None  # type: ignore
 
 Prediction = Tuple[float, int, float]  # (elapsed_sec, label_idx, confidence)
 
 
-class PoseActionVisualizer(PoseActionClassifier):
+class PoseActionVisualizer(PoseActionClassifier if PoseActionClassifier else object):
     """Run the TCN pipeline **and** keep a history of predictions.
 
     Parameters
@@ -36,6 +53,8 @@ class PoseActionVisualizer(PoseActionClassifier):
 
 
     def __init__(self, *args, **kwargs) -> None:
+        if PoseActionClassifier is None:
+            raise ImportError("PoseActionClassifier unavailable")
         super().__init__(*args, **kwargs)
         self._start_time: float | None = None
         self.predictions: List[Prediction] = [] # [Tuple(float, int, float), ...]
@@ -149,6 +168,43 @@ class PoseActionVisualizer(PoseActionClassifier):
         if show:
             plt.show()
         plt.close()
+
+
+def plot_predictions(
+    predictions: Sequence[Prediction],
+    labels: Sequence[str],
+    *,
+    save_path: str | None = None,
+    show: bool = True,
+) -> None:
+    """Plot ``(time, label_idx, confidence)`` triples as a confidence timeline."""
+
+    if not predictions:
+        return
+
+    times, label_idx, confs = map(np.array, zip(*predictions))
+
+    plt.style.use("dark_background")
+    plt.figure(figsize=(10, 6))
+
+    for idx, name in enumerate(labels):
+        mask = label_idx == idx
+        if np.any(mask):
+            plt.plot(times[mask], confs[mask], marker="o", label=name)
+
+    plt.xlabel("Time (s)")
+    plt.ylabel("Confidence")
+    plt.title("Pose Classification Over Time")
+    plt.legend()
+    plt.tight_layout()
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+
+    if show:
+        plt.show()
+    plt.close()
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:  # underscore = private helper
