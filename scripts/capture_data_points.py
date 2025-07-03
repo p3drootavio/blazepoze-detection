@@ -4,7 +4,7 @@ Save them to a CSV file with shape (55 rows × 99 cols)
 
 Usage (example) ───────────────────────────────────────────────────────────────────────────────────────────
 source .venv/bin/activate
-export PYTHONPATH="$PYTHONPATH:/Users/username/project/path"
+export PYTHONPATH=$PYTHONPATH:"/Users/username/project/path"
 python scripts/capture_data_points.py \
   --pd_model depthai_blazepose/models/pose_detection_sh4.blob \
   --lm_model depthai_blazepose/models/pose_landmark_full_sh4.blob \
@@ -36,7 +36,15 @@ class DataPointCapturer:
     #: Expected size of one flattened landmark vector (33keypoints × 3 coords)
     LANDMARK_VECTOR_LEN: int = 99
 
-    def __init__(self, *, pd_model_path: str, lm_model_path: str, output_dir: str, buffer_size: int = 55, fps: int = 10, smoothing: bool = True,) -> None:
+    def __init__(
+            self,
+            *,
+            pd_model_path: str,
+            lm_model_path: str,
+            output_dir: str,
+            buffer_size: int = 55,
+            fps: int = 10,
+            smoothing: bool = True,) -> None:
         self.buffer_size = buffer_size
         self.fps = fps
         self.output_dir = Path(output_dir)
@@ -174,7 +182,6 @@ def visualize_points(csv_file: str, show: bool = True) -> None:
     plt.close(fig)
 
 
-
 def _main() -> None:
     args = _build_arg_parser().parse_args()
 
@@ -189,6 +196,7 @@ def _main() -> None:
 
     try:
         capturer.save_capture(file_name=args.file_name)
+        visualize_points(capturer.save_capture(file_name=args.file_name))
     except KeyboardInterrupt:
         logger.info("Interrupted by user – exiting…")
     finally:
