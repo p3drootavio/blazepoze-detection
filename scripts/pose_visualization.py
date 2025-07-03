@@ -153,7 +153,7 @@ class PoseActionVisualizer(PoseActionClassifier if PoseActionClassifier else obj
         for idx, name in enumerate(labels):
             mask = label_idx == idx  # Boolean mask: True where the predicted label matches the current class index
             if np.any(mask):  # skip classes never predicted
-                plt.plot(times[mask], confs[mask], marker="o", label=name)
+                plt.scatter(times[mask], confs[mask], marker="*", label=name)
 
         plt.xlabel("Time (s)")
         plt.ylabel("Confidence")
