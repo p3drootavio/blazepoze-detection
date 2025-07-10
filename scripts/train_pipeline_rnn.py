@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix, classification_report, ConfusionMa
 from tensorflow.keras.callbacks import EarlyStopping
 
 # local modules
-from src.blazepoze.pipeline.tnc_model import build_tcn as tcn
+from src.blazepoze.pipeline.rnn_model import build_rnn as rnn
 from src.blazepoze.pipeline.pose_dataset import PoseDatasetPipeline
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -107,18 +107,10 @@ def main():
 
     # TCN Model Configuration
     input_shape = (SEQUENCE_LENGTH, LANDMARKS_DIM)
-    dilations = [1, 2, 4, 8, 16, 32]
+    output_units = pipeline.class_names_encoded
 
     # Create Model and Compile it
-    model = tcn(
-        input_shape=input_shape,
-        filters=64,
-        kernel_size=3,
-        dilations=dilations,
-        num_blocks=6,
-        base_rate=0.2,
-        output_units=pipeline.class_names_encoded,
-    )
+    model = rnn(input_shape, 64, 128, output_units=output_units)
 
     model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     model.summary()

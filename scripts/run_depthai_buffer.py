@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Change the first argument to point to your .keras file
     parser.add_argument(
         "--keras_model",
-        default="models/pretrained/pose_tcn_augmented.keras",
+        default="models/pretrained/pose_rnn_augmented.keras",
         help="Path to the TCN classifier .keras model.",
     )
     parser.add_argument(

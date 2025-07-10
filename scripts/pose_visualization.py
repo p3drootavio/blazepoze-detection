@@ -30,6 +30,7 @@ def read_labels(label_file: str | None) -> list[str]:
     with open(label_path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
+
 try:  # Optional heavy imports – may not be available during unit tests
     from src.blazepoze.pipeline.depthai_buffer import PoseActionClassifier
     from src.blazepoze.visualization.visualization_utils import VisualizationUtils
@@ -211,7 +212,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:  # underscore = private help
     p = argparse.ArgumentParser(description="Visualise pose classification over time")
     p.add_argument(
         "--keras_model",
-        default="models/pretrained/pose_tcn_augmented.keras",
+        default="models/pretrained/pose_rnn_augmented.keras",
         help="Path to the TCN classifier .keras model.",
     )
     p.add_argument(
